@@ -8,3 +8,9 @@ result
 
 # Ignore the bin directory
 bin
+
+# Windows release artifacts produced by build-windows.ps1
+dist
+
+# Optional workspace-local Go caches (useful in restricted build environments)
+.cache

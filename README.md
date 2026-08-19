@@ -7,6 +7,10 @@
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/containers/skopeo)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10516/badge)](https://www.bestpractices.dev/projects/10516)
 
+> **Windows:** This fork provides verified amd64 and arm64 binaries built with
+> `CGO_ENABLED=0`, with no GPGME or C runtime dependency. See
+> [WINDOWS.md](WINDOWS.md) for building and usage instructions.
+
 `skopeo` is a command line utility that performs various operations on container images and image repositories.
 
 `skopeo` does not require the user to be running as root to do most of its operations.

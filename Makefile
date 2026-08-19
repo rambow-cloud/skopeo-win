@@ -132,9 +132,11 @@ binary: cmd/skopeo
 .PHONY: bin/skopeo
 bin/skopeo:
 	$(GO) build ${GO_DYN_FLAGS} ${SKOPEO_LDFLAGS} -gcflags "$(GOGCFLAGS)" -tags "$(BUILDTAGS)" -o $@ ./cmd/skopeo
+bin/skopeo.windows.%.exe:
+	CGO_ENABLED=0 GOOS=windows GOARCH=$* $(GO) build ${SKOPEO_LDFLAGS} -tags "containers_image_openpgp exclude_graphdriver_btrfs $(BUILDTAGS)" -o $@ ./cmd/skopeo
 bin/skopeo.%:
 	GOOS=$(word 2,$(subst ., ,$@)) GOARCH=$(word 3,$(subst ., ,$@)) $(GO) build ${SKOPEO_LDFLAGS} -tags "containers_image_openpgp $(BUILDTAGS)" -o $@ ./cmd/skopeo
-local-cross: bin/skopeo.darwin.amd64 bin/skopeo.linux.arm bin/skopeo.linux.arm64 bin/skopeo.linux.riscv64 bin/skopeo.windows.386.exe bin/skopeo.windows.amd64.exe
+local-cross: bin/skopeo.darwin.amd64 bin/skopeo.linux.arm bin/skopeo.linux.arm64 bin/skopeo.linux.riscv64 bin/skopeo.windows.386.exe bin/skopeo.windows.amd64.exe bin/skopeo.windows.arm64.exe
 
 $(MANPAGES): %: %.md
 ifneq ($(DISABLE_DOCS), 1)

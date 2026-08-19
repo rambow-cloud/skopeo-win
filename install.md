@@ -118,9 +118,9 @@ sudo apt-get -y install skopeo
 [Package Info](https://packages.ubuntu.com/jammy/skopeo)
 
 ### Windows
-Skopeo has not yet been packaged for Windows. There is an [open feature
-request](https://github.com/containers/skopeo/issues/715) and contributions are
-always welcome.
+This fork provides a native, pure-Go Windows build which does not require
+GPGME or a C toolchain. See [WINDOWS.md](WINDOWS.md) for the one-command build,
+verification, usage, and supported feature scope.
 
 ## Container Images
 

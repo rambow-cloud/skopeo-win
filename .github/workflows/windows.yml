@@ -1,0 +1,30 @@
+name: Windows binaries
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify English-only documentation
+        shell: pwsh
+        run: ./hack/verify-no-chinese-docs.ps1
+      - name: Build and verify pure-Go binaries
+        shell: pwsh
+        run: ./build-windows.ps1 -Architecture amd64,arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skopeo-windows
+          path: dist/*
+          if-no-files-found: error

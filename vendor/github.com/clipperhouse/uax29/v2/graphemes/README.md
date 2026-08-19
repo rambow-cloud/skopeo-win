@@ -13,7 +13,7 @@ go get github.com/clipperhouse/uax29/v2/graphemes
 ```go
 import "github.com/clipperhouse/uax29/v2/graphemes"
 
-text := "Hello, 世界. Nice dog! 👍🐶"
+text := "Hello, world. Nice dog! 👍🐶"
 g := graphemes.FromString(text)
 
 for g.Next() {                     // Next() returns true until end of data
@@ -35,7 +35,7 @@ We use the Unicode [test suite](https://unicode.org/reports/tr41/tr41-36.html#Te
 ### If you have a `string`
 
 ```go
-text := "Hello, 世界. Nice dog! 👍🐶"
+text := "Hello, world. Nice dog! 👍🐶"
 g := graphemes.FromString(text)
 
 for g.Next() {                     // Next() returns true until end of data
@@ -63,7 +63,7 @@ if g.Err() != nil {                    // Check the error
 ### If you have a `[]byte`
 
 ```go
-b := []byte("Hello, 世界. Nice dog! 👍🐶")
+b := []byte("Hello, world. Nice dog! 👍🐶")
 
 g := graphemes.FromBytes(b)
 
