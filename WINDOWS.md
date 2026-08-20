@@ -43,3 +43,7 @@ Common transports that do not depend on Linux container storage drivers are supp
 ## Updating from upstream
 
 The core command and image-processing code remains unchanged from upstream. To update this fork, merge a newer stable Skopeo release and then run `build-windows.ps1 -Architecture amd64,arm64`. The build metadata and PE checks in the script act as upgrade gates, and CI runs the same process before uploading artifacts.
+
+## Automatic releases
+
+Every push to `main` builds and verifies both Windows architectures. The workflow reads the version from `version/version.go`, creates a matching `vX.Y.Z` GitHub Release, and uploads both executables and SHA-256 files. If a release for that upstream version already exists, its binary assets are replaced with the newly verified build instead of creating a second version.
