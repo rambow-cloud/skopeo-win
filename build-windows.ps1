@@ -5,7 +5,7 @@ param(
 
     [string] $OutputDirectory = "dist",
 
-    [switch] $KeepDebugSymbols
+    [switch] $KeepDebugSymbols = $true
 )
 
 Set-StrictMode -Version Latest

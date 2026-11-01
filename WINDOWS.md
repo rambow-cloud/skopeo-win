@@ -4,7 +4,7 @@ This repository is based on upstream Skopeo v1.23.0 and produces native Windows 
 
 ## Build
 
-PowerShell 7 (or Windows PowerShell 5.1) and Go 1.25.6 or newer are required. Run this command from the repository root:
+PowerShell 7 (or Windows PowerShell 5.1) and Go 1.27.3 or newer are required. Run this command from the repository root:
 
 ```powershell
 .\build-windows.ps1
@@ -15,6 +15,8 @@ By default, the script creates `dist\skopeo-windows-amd64.exe` and its SHA-256 c
 ```powershell
 .\build-windows.ps1 -Architecture amd64,arm64
 ```
+
+Debug symbols are retained by default so binary vulnerability scans can identify packages accurately. Stripped PE executables make govulncheck fall back to conservative module-level matching. Release builds must retain symbols; `-KeepDebugSymbols:$false` is available only for custom size-optimized builds that will not pass the same scan guarantees.
 
 Before delivering each executable, the script verifies that:
 
@@ -47,3 +49,16 @@ The core command and image-processing code remains unchanged from upstream. To u
 ## Automatic releases
 
 Every push to `main` builds and verifies both Windows architectures. The workflow reads the version from `version/version.go`, creates a matching `vX.Y.Z` GitHub Release, and uploads both executables and SHA-256 files. If a release for that upstream version already exists, its binary assets are replaced with the newly verified build instead of creating a second version.
+
+## Vulnerability checks
+
+The release build uses the Go version declared in `go.mod`. CI runs command unit tests and installs `govulncheck` v1.9.0 to scan production Windows source and both binaries before uploading release assets. Source analysis checks reachable vulnerabilities; binary scans also reject findings in packages present in the executable. Module-only advisories for packages absent from the build are reported separately and do not fail the gate. A separate release job receives write permission only after the build and scan job succeeds.
+
+To repeat these checks locally after building both architectures:
+
+```powershell
+go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+.\hack\check-vulnerabilities.ps1
+```
+
+The scanner needs network access to the Go vulnerability database. Reports are written under `.cache/vulnerability-scan` and retained as CI artifacts. A clean result covers known Go database findings for the scanned configuration and database snapshot, not all possible vulnerabilities.

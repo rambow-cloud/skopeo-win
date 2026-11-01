@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -75,10 +76,25 @@ func main() {
 		fail("PE machine %#x, expected %#x for %s", file.FileHeader.Machine, expectedMachine, expectedArch)
 	}
 
-	libraries, err := file.ImportedLibraries()
+	// debug/pe.ImportedLibraries is a stub. ImportedSymbols contains the actual
+	// loader import entries as function:DLL strings.
+	imports, err := file.ImportedSymbols()
 	if err != nil {
 		fail("read PE imports: %v", err)
 	}
+	seenLibraries := map[string]bool{}
+	for _, imported := range imports {
+		separator := strings.LastIndex(imported, ":")
+		if separator < 0 {
+			fail("unexpected PE import entry %q", imported)
+		}
+		seenLibraries[strings.ToLower(imported[separator+1:])] = true
+	}
+	libraries := make([]string, 0, len(seenLibraries))
+	for library := range seenLibraries {
+		libraries = append(libraries, library)
+	}
+	sort.Strings(libraries)
 	for _, library := range libraries {
 		lower := strings.ToLower(library)
 		for _, fragment := range forbiddenDLLFragments {
