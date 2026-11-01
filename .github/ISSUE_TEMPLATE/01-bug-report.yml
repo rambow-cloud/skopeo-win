@@ -1,0 +1,70 @@
+name: Bug report
+description: Report a reproducible Windows build, runtime, or release problem.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report problems with this Windows distribution here. Remove credentials, registry tokens, and private image references from commands and logs.
+  - type: checkboxes
+    id: existing-issues
+    attributes:
+      label: Existing reports
+      options:
+        - label: I searched the existing issues for the same problem.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Skopeo version
+      description: Paste the output of skopeo --version, or the source commit for a build failure.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Windows version, architecture, shell, download source, and Go version if building from source.
+      placeholder: |
+        Windows version:
+        Architecture: amd64 / arm64
+        Shell:
+        Release URL or source commit:
+        Go version (source builds only):
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal command or build invocation and any configuration needed to reproduce it.
+      placeholder: |
+        1. Download or build ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the error message and exit code, if available.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs and evidence
+      description: Paste sanitized logs or screenshots. For download warnings, include the exact warning or threat name, browser, asset URL, and file SHA-256.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Suggested acceptance criteria
+      description: Optional observable outcomes that would demonstrate the problem is fixed. Maintainers will refine these before implementation.

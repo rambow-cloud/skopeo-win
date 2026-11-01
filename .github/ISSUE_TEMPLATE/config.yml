@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Windows usage and supported features
+    url: https://github.com/rambow-cloud/skopeo-win/blob/main/WINDOWS.md
+    about: Read the Windows build, usage, and release documentation before opening an issue.
+  - name: Upstream Skopeo issues
+    url: https://github.com/containers/skopeo/issues
+    about: Search for existing upstream reports. Report Windows distribution problems in this repository.

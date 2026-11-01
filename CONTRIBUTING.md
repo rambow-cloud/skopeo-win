@@ -1,5 +1,11 @@
 # Contributing to Skopeo
 
+This repository maintains the Windows distribution at
+[rambow-cloud/skopeo-win](https://github.com/rambow-cloud/skopeo-win).
+Follow our [issue-driven development workflow](docs/issue-driven-development.md)
+for changes here. The upstream contribution requirements below remain applicable
+unless this document explicitly describes a distribution-specific process.
+
 We'd love to have you join the community! Below summarizes the processes
 that we follow.
 
@@ -21,7 +27,7 @@ This project also follows this LLM policy, which includes comments, issues, PRs,
 ## Reporting Issues
 
 Before reporting an issue, check our backlog of 
-[open issues](https://github.com/containers/skopeo/issues)
+[open issues](https://github.com/rambow-cloud/skopeo-win/issues)
 to see if someone else has already reported it. If so, feel free to add
 your scenario, or additional information, to the discussion. Or simply 
 "subscribe" to it to be notified when it is updated.
@@ -34,25 +40,33 @@ The easier it is for us to reproduce it, the faster it'll be fixed!
 
 Please don't include any private/sensitive information in your issue!
 
+Use the [issue forms](https://github.com/rambow-cloud/skopeo-win/issues/new/choose)
+for bug reports, feature requests, and implementation tasks. Maintainers refine
+scope and acceptance criteria before implementation. Link related upstream
+reports when the behavior also occurs outside this Windows distribution.
+
 ## Submitting Pull Requests
 
 No Pull Request (PR) is too small! Typos, additional comments in the code,
 new testcases, bug fixes, new features, more documentation, ... it's all 
 welcome!
 
-While bug fixes can first be identified via an "issue", that is not required.
-It's ok to just open up a PR with the fix, but make sure you include the same
-information you would have included in an issue - like how to reproduce it.
+For this Windows distribution, open or link an issue before implementation.
+Agree on scope and acceptance criteria there, then create an
+`issue/<number>-<short-description>` branch. Use the PR template to link the
+issue and record validation evidence. Use `Closes #N` for completed work and
+`Refs #N` when the PR only completes part of the issue.
 
 PRs for new features should include some background on what use cases the
 new code is trying to address. When possible and when it makes sense, try to break-up
 larger PRs into smaller ones - it's easier to review smaller
 code changes. But only if those smaller ones make sense as stand-alone PRs.
 
-Regardless of the type of PR, all PRs should include:
-* well documented code changes
-* additional testcases. Ideally, they should fail w/o your code change applied
-* documentation changes
+PRs should include well documented changes and relevant validation evidence.
+Behavior changes should include focused regression tests when practical.
+Documentation-only or template changes do not require unrelated runtime tests.
+Update user-facing documentation when behavior changes, and keep repository
+documentation and templates in English.
 
 Squash your commits into logical pieces of work that might want to be reviewed
 separate from the rest of the PRs. Ideally, each commit should implement a single
@@ -163,9 +177,9 @@ For development related discussions, please use the
 Slack.
 
 For discussions around issues/bugs and features, you can use the github
-[issues](https://github.com/containers/skopeo/issues)
+[issues](https://github.com/rambow-cloud/skopeo-win/issues)
 and
-[PRs](https://github.com/containers/skopeo/pulls)
+[PRs](https://github.com/rambow-cloud/skopeo-win/pulls)
 tracking system.
 
 <!--

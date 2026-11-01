@@ -1,0 +1,63 @@
+name: Implementation task
+description: Plan issue-driven work such as upstream updates, CI, documentation, signing, or release maintenance.
+title: "[Task]: "
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Windows build and compatibility
+        - CI and release automation
+        - Code signing and distribution
+        - Upstream synchronization
+        - Documentation and community
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective and motivation
+      description: Explain the problem, intended outcome, and why the work is needed.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: Identify the components to change and explicitly state what is outside this task.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Define checkable outcomes. Include relevant architectures, artifact names, or compatibility constraints.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Implementation plan
+      description: Outline the proposed steps. Update this plan as the work progresses.
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: Describe how each acceptance criterion will be verified, including relevant commands or manual checks.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and external decisions
+      description: Link blocking issues or upstream changes. Identify approvals, accounts, or credentials needed without posting secrets.
+  - type: textarea
+    id: delivery
+    attributes:
+      label: Delivery and rollback
+      description: Describe release impact, rollout steps, and recovery if the change fails. Use not applicable when appropriate.

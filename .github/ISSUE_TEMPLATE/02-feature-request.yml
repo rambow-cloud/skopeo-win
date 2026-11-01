@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose an improvement with a concrete use case and acceptance criteria.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Focus on the user outcome. Changes to shared Skopeo functionality may also need upstream discussion; link related issues when available.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and use case
+      description: Who needs this change, what are they trying to do, and what prevents them today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome
+      description: Describe the intended behavior, including an example command or user flow where useful.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable outcomes that a reviewer can verify.
+      placeholder: |
+        - [ ] A user can ...
+        - [ ] Existing behavior remains compatible with ...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and scope limits
+      description: Describe workarounds, alternatives, and anything deliberately outside this proposal.
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification approach
+      description: Suggest relevant commands, platforms, or manual checks. Pure-Go Windows support must be preserved.
+  - type: textarea
+    id: references
+    attributes:
+      label: Related issues and upstream references

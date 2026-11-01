@@ -11,6 +11,10 @@
 > `CGO_ENABLED=0`, with no GPGME or C runtime dependency. See
 > [WINDOWS.md](WINDOWS.md) for building and usage instructions.
 
+For Windows distribution reports and planned work, use the
+[issue templates](https://github.com/rambow-cloud/skopeo-win/issues/new/choose).
+Contributors should follow the [issue-driven development workflow](docs/issue-driven-development.md).
+
 `skopeo` is a command line utility that performs various operations on container images and image repositories.
 
 `skopeo` does not require the user to be running as root to do most of its operations.
