@@ -31,7 +31,7 @@ Dependency versions and vendored sources are regenerated together. OpenPGP chang
 - Both binaries retain symbols, are built with Go 1.27.3 and CGO disabled, and import only `kernel32.dll` in their PE loader import tables.
 - Signature regression tests accept a valid signature and reject altered, unsigned, untrusted, and expired inputs.
 - Upstream ocicrypt PGP key-wrapping tests pass with the upgraded module versions.
-- Command unit tests pass locally with the previously identified Windows symlink-privilege test `TestGenerateSigstoreKey` excluded. CI runs the complete command suite.
+- Command tests use the platform null device and quoted Windows paths, and signed fixtures are protected from Git line-ending conversion. The command suite runs without excluding a whole test; only symlink-specific subtests skip when Windows reports missing privilege 1314.
 
 GO-2026-5932 remains a module-level advisory because other maintained packages from `golang.org/x/crypto` are still needed. The unsafe `golang.org/x/crypto/openpgp` package and all its subpackages are absent from the production dependency graph and both symbol-preserving binaries. The advisory has no fixed x/crypto version. No advisory suppression is used: reports retain the module-only finding, while source and binary package checks verify the vulnerable package is absent.
 
