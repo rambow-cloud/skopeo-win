@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/rambow-cloud/skopeo-win/security/advisories/new
+    about: Use a private security report for new or undisclosed vulnerabilities. Do not report them in a public issue.
   - name: Windows usage and supported features
     url: https://github.com/rambow-cloud/skopeo-win/blob/main/WINDOWS.md
     about: Read the Windows build, usage, and release documentation before opening an issue.

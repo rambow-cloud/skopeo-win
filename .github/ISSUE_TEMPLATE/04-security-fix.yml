@@ -1,0 +1,63 @@
+name: Security fix
+description: Track remediation for an already public vulnerability or security hardening work.
+title: "[Security]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a PUBLIC issue. Use this form only for already disclosed vulnerabilities or non-sensitive hardening work.
+        Report new or undisclosed vulnerabilities privately at https://github.com/rambow-cloud/skopeo-win/security/advisories/new.
+        See https://github.com/rambow-cloud/skopeo-win/blob/main/SECURITY.md for reporting guidance.
+        Never include live credentials, private registry data, or undisclosed exploit details here.
+  - type: checkboxes
+    id: disclosure
+    attributes:
+      label: Public disclosure
+      options:
+        - label: This issue contains only already public information or non-sensitive hardening work.
+          required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Security problem or hardening objective
+      description: Summarize the publicly known risk or the protection to improve.
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: Public advisory and upstream references
+      description: Link a public CVE, GHSA, dependency advisory, or upstream fix. For hardening, explain that no advisory applies.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Affected versions and impact
+      description: Identify affected releases, dependencies, architectures, or workflows and any required conditions. Distinguish confirmed impact from unknown applicability.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Remediation scope
+      description: Describe the dependency update, code or workflow fix, or hardening change. Note any upstream coordination and scope limits.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and verification
+      description: Define evidence that the risk is addressed, including focused regression checks, relevant scan results, or configuration verification. Preserve pure-Go Windows support.
+      placeholder: |
+        - [ ] The affected dependency or behavior is remediated and verified by ...
+        - [ ] Relevant Windows builds and compatibility checks pass.
+    validations:
+      required: true
+  - type: textarea
+    id: delivery
+    attributes:
+      label: Release and user guidance
+      description: State the planned fixed release, safe temporary mitigations if known, and how users will verify the delivered fix. Explain if no release is needed.
+    validations:
+      required: true

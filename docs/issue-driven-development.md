@@ -9,6 +9,9 @@ Use the [issue chooser](https://github.com/rambow-cloud/skopeo-win/issues/new/ch
 - **Bug report:** a reproducible failure, environment, expected behavior, and actual behavior.
 - **Feature request:** a user need, proposed outcome, and observable acceptance criteria.
 - **Implementation task:** a bounded work item covering build, CI, signing, upstream synchronization, documentation, or release maintenance.
+- **Security fix:** remediation of an already disclosed vulnerability or non-sensitive hardening, with affected versions, public references, verification, and release impact.
+
+For new or undisclosed vulnerabilities, follow [SECURITY.md](../SECURITY.md) and use a private vulnerability report instead of a public issue. Plan, implement, and review the fix privately until coordinated disclosure; the public issue-first requirement does not apply to this work.
 
 Search existing reports first. Keep credentials and private registry data out of issues. A bug reporter does not need to design a fix; the maintainer can add scope and acceptance criteria after reproducing the report.
 

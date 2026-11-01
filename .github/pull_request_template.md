@@ -1,5 +1,7 @@
 ## Linked issue
 
+<!-- Undisclosed vulnerabilities must use the private process in SECURITY.md. Do not put confidential advisory links or exploit details in a public PR. -->
+
 Closes #<!-- Replace with the issue number. Use "Refs #N" for partial work. -->
 
 ## Change and motivation

@@ -44,6 +44,9 @@ Use the [issue forms](https://github.com/rambow-cloud/skopeo-win/issues/new/choo
 for bug reports, feature requests, and implementation tasks. Maintainers refine
 scope and acceptance criteria before implementation. Link related upstream
 reports when the behavior also occurs outside this Windows distribution.
+Use the Security fix form for already public security remediation or hardening.
+For new or undisclosed vulnerabilities, follow [SECURITY.md](SECURITY.md) and
+use the private reporting process instead of opening a public issue or PR.
 
 ## Submitting Pull Requests
 
@@ -52,6 +55,7 @@ new testcases, bug fixes, new features, more documentation, ... it's all
 welcome!
 
 For this Windows distribution, open or link an issue before implementation.
+Undisclosed security fixes follow the private process in [SECURITY.md](SECURITY.md).
 Agree on scope and acceptance criteria there, then create an
 `issue/<number>-<short-description>` branch. Use the PR template to link the
 issue and record validation evidence. Use `Closes #N` for completed work and
