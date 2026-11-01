@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: windows-${{ github.ref }}
@@ -17,9 +17,14 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: true
@@ -29,13 +34,31 @@ jobs:
       - name: Build and verify pure-Go binaries
         shell: pwsh
         run: ./build-windows.ps1 -Architecture amd64,arm64
-      - uses: actions/upload-artifact@v7
+      - name: Run command unit tests
+        shell: pwsh
+        env:
+          CGO_ENABLED: '0'
+        run: go test -tags "containers_image_openpgp exclude_graphdriver_btrfs" ./cmd/skopeo/... ./version
+      - name: Install vulnerability scanner
+        shell: pwsh
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+      - name: Scan production source and both release binaries
+        shell: pwsh
+        run: ./hack/check-vulnerabilities.ps1
+      - name: Upload vulnerability scan reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vulnerability-scan-reports
+          path: .cache/vulnerability-scan/*.txt
+          include-hidden-files: true
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: skopeo-windows
           path: dist/*
           if-no-files-found: error
       - name: Resolve upstream Skopeo version
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: version
         shell: pwsh
         run: |
@@ -44,15 +67,28 @@ jobs:
             throw "Unable to read the Skopeo version from version/version.go"
           }
           $version = $Matches[1]
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Only stable upstream versions can be released"
+          }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "tag=v$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-      - name: Publish GitHub release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: skopeo-windows
+          path: dist
+      - name: Publish scanned GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
         run: |
           $assets = @(
             Get-ChildItem -LiteralPath dist -File |
@@ -63,17 +99,34 @@ jobs:
             throw "No release assets were produced"
           }
 
+          $notes = @(
+            "Pure-Go Windows binaries synchronized with upstream Skopeo v$env:RELEASE_VERSION."
+            ""
+            "Source commit for these binaries: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/commit/$env:GITHUB_SHA"
+            "Verified build and vulnerability scan: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            ""
+            "Includes amd64 and arm64 executables and SHA-256 checksums. No third-party C runtime is required."
+            "Executables are not Authenticode signed."
+            "The upstream-aligned release tag is retained across rebuilds; use the source commit above for the source corresponding to these assets."
+          ) -join "`n"
+
           & gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) {
             & gh release upload $env:RELEASE_TAG @assets `
               --repo $env:GITHUB_REPOSITORY `
               --clobber
+            if ($LASTEXITCODE -ne 0) {
+              throw "Release asset upload failed"
+            }
+            & gh release edit $env:RELEASE_TAG `
+              --repo $env:GITHUB_REPOSITORY `
+              --notes $notes
           } else {
             & gh release create $env:RELEASE_TAG @assets `
               --repo $env:GITHUB_REPOSITORY `
               --target $env:GITHUB_SHA `
               --title "Skopeo v$env:RELEASE_VERSION for Windows" `
-              --notes "Pure-Go Windows binaries synchronized with upstream Skopeo v$env:RELEASE_VERSION. No third-party C runtime is required."
+              --notes $notes
           }
           if ($LASTEXITCODE -ne 0) {
             throw "GitHub release publishing failed"

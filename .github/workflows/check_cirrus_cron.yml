@@ -16,6 +16,8 @@ on:
 jobs:
   # Ref: https://docs.github.com/en/actions/using-workflows/reusing-workflows
   call_cron_failures:
+    # This upstream-only monitor requires upstream Cirrus and mail secrets.
+    if: github.repository == 'containers/skopeo'
     uses: containers/podman/.github/workflows/check_cirrus_cron.yml@main
     secrets:
       SECRET_CIRRUS_API_KEY: ${{secrets.SECRET_CIRRUS_API_KEY}}
