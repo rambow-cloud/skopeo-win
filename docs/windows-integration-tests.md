@@ -17,6 +17,8 @@ Go toolchain diagnostics, including dependency-download progress, are stored sep
 
 The integration module is separate from the production module. Its registry implementation is test infrastructure and is not linked into the released executable or added to the production vendor tree. Keep its Go version aligned with the production module and update its dependencies/checksums through reviewed changes.
 
+The Windows key-diagnostic tests additionally use go-winio to coordinate a named-pipe passphrase read. This creates a deterministic public-output write failure after the executable's initial path checks, without sleeps, timing races, privileged symlinks, or production test hooks. go-winio remains a test dependency of this module.
+
 ## Coverage
 
 | Scenario | Assertion |
@@ -27,6 +29,24 @@ The integration module is separate from the production module. Its registry impl
 | Signature controls | Directory copies preserve actual signature packets by default, selectively remove list signatures, remove all signatures, and reject signed-list changes or conflicting flags. These packets are opaque under the test's explicit insecure policy; this scenario does not establish cryptographic trust. |
 | YAML sync | Parse a maintained-YAML configuration, sync both architectures between registry repositories, and inspect the resulting index. |
 | Foreign-layer copy/sync | Defaults retain external references with zero downloads. Opt-in copy and sync store exact layer bytes, verified through the registry blob endpoint even when the external server fails. Retained external URLs can still make subsequent CLI pulls depend on that server; those failures and failed opt-in downloads must return a nonzero exit. |
+
+## Feature-to-test matrix
+
+Each row identifies user-visible behavior from the selected feature ports, rather than inferring coverage from a parameter appearing in help. All scenarios below execute the built program as a child process.
+
+| Feature / supported command | Executable integration scenario | Observable acceptance criteria |
+| --- | --- | --- |
+| copy platform stripping and defaults | `TestPlatformSubsetThroughRegistry`, `TestCopyPlatformAndSignatureBoundaries` | Registry subset has one selected instance; default remains sparse without copying the omitted instance; both requested platforms are retained; unsigned lists can be stripped; preserve-digests retains the original sparse index or rejects incompatible stripping; `--all` conflicts with explicit selection. |
+| copy signature controls | `TestExecutableSignatureControls`, `TestCopyPlatformAndSignatureBoundaries` | Preserve packets by default, selectively remove the list signature, remove all signatures, reject modifications of signed lists, reject conflicting flags, and reject list-only removal on a single image. |
+| sync signature controls | `TestSyncSignatureControls` | Sync actual signed directory fixtures to a registry with an isolated signature lookaside store, then pull them back to verify list and both instance packets. Default preserves all; list removal retains both instances; full removal removes all; conflicting flags and single-image list removal fail. |
+| copy/sync foreign-layer download | `TestForeignLayerCopyAndSync` | Defaults perform zero layer downloads; each opt-in stores exact bytes; missing external service produces nonzero exits in both copy and sync; retained URL behavior remains visible. |
+| maintained YAML compatibility | `TestYAMLSyncThroughRegistry`, `TestYAMLCompatibilityAndAuthentication` | Real transfers parse aliases and regex filters, authenticate with fixture credentials, apply YAML TLS settings over a conflicting CLI setting, and copy only selected tags. Bad credentials, malformed YAML, and invalid TLS booleans fail. |
+| changed argument/required-option diagnostics | `TestNewCLIArgumentDiagnostics` | Each changed command exits with code 1, emits help plus its actionable error on stderr, and leaves stdout empty. Signing output and key-prefix requirements are included. |
+| duration syntax and inspect override examples | `TestDurationAndCrossPlatformHelp`, `TestCommandTimeoutIsEnforced`, `TestRegistryRoundTrip` | Root help shows duration examples, inspect help shows OS/architecture override examples, valid units parse, invalid units fail, a blocked local request obeys the timeout, and an actual arm64 image configuration is selected. |
+| public-key write error and key output | `TestSigstoreKeyGenerationAndOverwriteProtection`, `TestPublicKeyWriteFailureIdentifiesPublicKey` | Generate a key pair through a path with spaces, refuse overwrite without changing bytes, and force a real public-output write failure that identifies the public key after the private key was written. |
+| Windows directory sync regression found by these tests | `TestDirectorySyncWindowsPaths` | Absolute, relative, trailing-separator, slash-normalized, scoped nested and unscoped nested sources produce valid registry names and preserve image-instance digests. |
+
+Release-number allocation, reviewed-note rendering, checksum/tag collision protection, and interrupted-publication retries are covered by the separate `internal/release` suite and actual main publication job. They are release infrastructure, not commands inside the Windows image executable. Existing pure-Go OpenPGP tests verify trust and tampering; the packet-copy scenarios above deliberately test preservation under an insecure policy and do not establish signature trust.
 
 The original command tests remain useful for isolated option/error handling and pure-Go OpenPGP trust verification. The original upstream `integration/` directory is a separate, primarily Linux-oriented suite and is not claimed to run by this Windows harness. Local registry tests do not certify every hosted registry, authentication service, TLS deployment, container runtime, or network condition. ARM64 is cross-compiled and PE-checked; it is not runtime-tested here.
 

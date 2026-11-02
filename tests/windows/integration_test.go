@@ -78,6 +78,16 @@ func newCLI(t *testing.T) cli {
 
 func (c cli) run(t *testing.T, wantError string, args ...string) []byte {
 	t.Helper()
+	return c.execute(t, wantError, nil, args...).stdout
+}
+
+type commandResult struct {
+	stdout, stderr []byte
+	exitCode       int
+}
+
+func (c cli) execute(t *testing.T, wantError string, afterStart func(context.Context), args ...string) commandResult {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	global := []string{"--insecure-policy", "--registries-conf", filepath.Join(c.root, "registries.conf"), "--registries.d", filepath.Join(c.root, "registries.d")}
@@ -85,7 +95,21 @@ func (c cli) run(t *testing.T, wantError string, args ...string) []byte {
 	cmd.Dir, cmd.Env = c.root, c.env
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	err := cmd.Run()
+	err := cmd.Start()
+	waited := false
+	defer func() {
+		if err == nil && !waited {
+			cancel()
+			_ = cmd.Wait()
+		}
+	}()
+	if err == nil {
+		if afterStart != nil {
+			afterStart(ctx)
+		}
+		err = cmd.Wait()
+		waited = true
+	}
 	t.Logf("skopeo %s\nexit=%v\nstdout=%s\nstderr=%s", strings.Join(args, " "), err, stdout.String(), stderr.String())
 	if ctx.Err() != nil {
 		t.Fatalf("command timed out: %v", ctx.Err())
@@ -99,7 +123,11 @@ func (c cli) run(t *testing.T, wantError string, args ...string) []byte {
 			t.Fatalf("expected nonzero exit containing %q, got %v: %s", wantError, err, stderr.String())
 		}
 	}
-	return stdout.Bytes()
+	code := 0
+	if cmd.ProcessState != nil {
+		code = cmd.ProcessState.ExitCode()
+	}
+	return commandResult{stdout.Bytes(), stderr.Bytes(), code}
 }
 
 func write(t *testing.T, path string, data []byte) {
@@ -418,6 +446,8 @@ func TestForeignLayerCopyAndSync(t *testing.T) {
 	assertRegistryBlob(t, copyHost, "team/foreign", f)
 	failureHost := startRegistry(t)
 	c.run(t, "failed fetching external blob", "copy", "--download-foreign-layers", "--retry-times=0", "--dest-tls-verify=false", "oci:"+source, "docker://"+failureHost+"/team/failure:stable")
+	syncFailureHost := startRegistry(t)
+	c.run(t, "500", "sync", "--download-foreign-layers", "--retry-times=0", "--src=docker", "--dest=docker", "--src-tls-verify=false", "--dest-tls-verify=false", host+"/team/foreign:stable", syncFailureHost+"/mirror")
 }
 
 // Verify storage through the registry blob endpoint, independently of a
