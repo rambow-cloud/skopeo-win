@@ -163,9 +163,30 @@ func parseRepositoryReference(input string) (reference.Named, error) {
 	return ref, nil
 }
 
-// destinationReference creates an image reference using the provided transport.
-// It returns a image reference to be used as destination of an image copy and
-// any error encountered.
+// directoryDestinationSuffix maps native filesystem paths to registry namespaces.
+func directoryDestinationSuffix(source, base string) (string, error) {
+	absSource, err := filepath.Abs(source)
+	if err != nil {
+		return "", err
+	}
+	absBase, err := filepath.Abs(base)
+	if err != nil {
+		return "", err
+	}
+	suffix, err := filepath.Rel(absBase, absSource)
+	if err != nil {
+		return "", err
+	}
+	if suffix == ".." || strings.HasPrefix(suffix, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("directory image %q is outside source %q", source, base)
+	}
+	if suffix == "." {
+		suffix = filepath.Base(absBase)
+	}
+	return filepath.ToSlash(suffix), nil
+}
+
+// destinationReference creates a destination image reference for the transport.
 func destinationReference(destination string, transport string) (types.ImageReference, error) {
 	var imageTransport types.ImageTransport
 
@@ -689,10 +710,9 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 				destSuffix = ref.DockerReference().String()
 			case directory.Transport:
 				// dir -> docker (we don't allow `dir` -> `dir` sync operations)
-				destSuffix = strings.TrimPrefix(ref.StringWithinTransport(), srcRepo.DirBasePath)
-				if destSuffix == "" {
-					// if source is a full path to an image, have destPath scoped to repo:tag
-					destSuffix = path.Base(srcRepo.DirBasePath)
+				destSuffix, err = directoryDestinationSuffix(ref.StringWithinTransport(), srcRepo.DirBasePath)
+				if err != nil {
+					return fmt.Errorf("determining directory sync destination: %w", err)
 				}
 			}
 
