@@ -111,6 +111,8 @@ Example: `skopeo copy --multi-arch=windows/amd64 --strip-removed-platforms --rem
 
 Download nondistributable (foreign) layers, including Windows base-image layers, even when the destination supports external layer URLs. The default may preserve external references instead of downloading their contents. Downloading does not grant redistribution rights; check the image's license before redistributing these layers. This additive feature was selectively ported from upstream main after v1.24.1.
 
+The manifest may retain external layer URLs after download. Subsequent pulls can still prefer those URLs and fail if the external server is unavailable, even when the layer was stored at the destination. This option alone does not guarantee offline operation.
+
 **--sign-by** _key-id_
 
 Add a “simple signing” signature using that key ID for an image name corresponding to _destination-image_

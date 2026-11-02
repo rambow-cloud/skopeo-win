@@ -94,6 +94,8 @@ This option does not change what will be copied; consider using `--all` at the s
 
 **--download-foreign-layers** Download nondistributable (foreign) layers even if the destination supports external layer URLs. Disabled by default. Ensure that the layer licenses permit redistribution. Selectively ported from upstream main after v1.24.1.
 
+The manifest may retain external URLs after download. Subsequent pulls can still require the external server; downloading alone does not guarantee an offline mirror.
+
 **--sign-by** _key-id_
 
 Add a “simple signing” signature using that key ID for an image name corresponding to _destination-image_
