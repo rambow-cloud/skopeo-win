@@ -46,7 +46,9 @@ foreach ($arch in @("x64", "arm64")) {
     Assert-Equal $manifest.Package.Identity.ProcessorArchitecture $arch "Wrong package architecture"
     Assert-Equal $manifest.Package.Properties.PublisherDisplayName "RambowCloud" "Wrong publisher display name"
     $application = $manifest.Package.Applications.Application
-    Assert-Equal $application.Executable "skopeo.exe" "Wrong application executable"
+    # MakeAppx accepts headless manifests, but Partner Center requires a waiver.
+    Assert-Equal $application.VisualElements.GetAttribute("AppListEntry") "default" "Store AppListEntry must be default; headless applications require a waiver"
+    Assert-Equal $application.Executable "store-launcher.exe" "Wrong visible application executable"
     Assert-Equal $application.EntryPoint "Windows.FullTrustApplication" "Wrong desktop entry point"
     $desktopNamespace = "http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
     Assert-Equal $application.GetAttribute("Subsystem", $desktopNamespace) "console" "Missing console subsystem"
@@ -54,6 +56,7 @@ foreach ($arch in @("x64", "arm64")) {
     $aliases = @($application.Extensions.Extension.AppExecutionAlias.ExecutionAlias | ForEach-Object { $_.Alias } | Sort-Object)
     Assert-Equal ($aliases -join ',') "skopeo-win.exe,skopeo.exe" "Wrong command aliases"
     Assert-Equal $application.Extensions.Extension.Executable "skopeo.exe" "Alias targets the wrong executable"
+    Assert-Equal $application.Extensions.Extension.EntryPoint "Windows.FullTrustApplication" "Wrong alias entry point"
     $capabilities = @($manifest.Package.Capabilities.Capability | ForEach-Object { $_.Name })
     Assert-Equal ($capabilities -join ',') "runFullTrust" "Unexpected application capabilities"
     $sourceArch = if ($arch -eq "x64") { "amd64" } else { "arm64" }
@@ -62,6 +65,9 @@ foreach ($arch in @("x64", "arm64")) {
     $sourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourceBinary).Hash
     $packagedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $packagedBinary).Hash
     Assert-Equal $packagedHash $sourceHash "Packaged executable differs from the verified release"
+    $launcher = Join-Path $layout "store-launcher.exe"
+    & go run (Join-Path $repositoryRoot "hack/verify-windows-binary.go") $launcher $sourceArch
+    if ($LASTEXITCODE -ne 0) { throw "Wrong Store launcher architecture or runtime dependencies" }
     Assert-Equal (Get-Content -Raw -LiteralPath (Join-Path $layout "LICENSE")) (Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot "LICENSE")) "License changed during packaging"
     foreach ($asset in @(@("StoreLogo", 50), @("Square44x44Logo", 44), @("Square150x150Logo", 150))) {
         $image = [Drawing.Image]::FromFile((Join-Path $layout "Assets/$($asset[0]).png"))
@@ -82,6 +88,33 @@ Assert-Equal ($actualVersion -join "`n") "skopeo version $Version" "Executable v
 $help = & $nativeBinary --help
 if ($LASTEXITCODE -ne 0 -or ($help -join "`n") -notmatch 'Usage:') { throw "Packaged executable failed --help" }
 
+$launcherInfo = New-Object Diagnostics.ProcessStartInfo
+$launcherInfo.FileName = Join-Path $layouts[$hostArchitecture] "store-launcher.exe"
+$launcherInfo.UseShellExecute = $false
+$launcherInfo.CreateNoWindow = $true
+$launcherInfo.RedirectStandardInput = $true
+$launcherInfo.RedirectStandardOutput = $true
+$launcherInfo.RedirectStandardError = $true
+$launcherProcess = [Diagnostics.Process]::Start($launcherInfo)
+try {
+    $launcherOutput = $launcherProcess.StandardOutput.ReadToEndAsync()
+    $launcherError = $launcherProcess.StandardError.ReadToEndAsync()
+    if ($launcherProcess.WaitForExit(250)) { throw "Store launcher exited before receiving input" }
+    $launcherProcess.StandardInput.WriteLine()
+    $launcherProcess.StandardInput.Close()
+    if (-not $launcherProcess.WaitForExit(10000)) { throw "Store launcher did not exit after Enter" }
+    Assert-Equal $launcherProcess.ExitCode 0 "Store launcher failed"
+    Assert-Equal $launcherError.GetAwaiter().GetResult() "" "Unexpected Store launcher error"
+    $text = $launcherOutput.GetAwaiter().GetResult()
+    if (-not $text.Contains("skopeo-win $Version") -or -not $text.Contains("skopeo-win --help") -or
+        -not $text.Contains("Press Enter to close this window")) {
+        throw "Store launcher did not display its version, terminal usage and close instructions"
+    }
+} finally {
+    if (-not $launcherProcess.HasExited) { $launcherProcess.Kill() }
+    $launcherProcess.Dispose()
+}
+
 $bundleHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $bundlePath).Hash.ToLowerInvariant()
 $checksum = (Get-Content -Raw -LiteralPath "$bundlePath.sha256").Trim() -split '\s+'
 Assert-Equal $checksum.Count 2 "Malformed bundle checksum"
@@ -92,12 +125,14 @@ $report = [ordered]@{
     bundleSHA256 = $bundleHash
     packagedExecutableSHA256 = $hashes
     manifestAndContentVerified = $true
+    visibleApplicationEntryVerified = $true
     nativeExecutableSmokeTest = $hostArchitecture
+    nativeLauncherInputTest = $hostArchitecture
     installedPackageTested = $false
     activatedExecutionAliasesTested = $false
     windowsAppCertificationKitRun = $false
 }
 $reportPath = Join-Path (Split-Path -Parent $bundlePath) "verification.json"
 $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding utf8
-Write-Host "Verified both package identities, architectures, aliases, logos, licenses and executable hashes."
-Write-Host "Extracted $hostArchitecture executable passed --version and --help. Installation, activated aliases and WACK still require validation."
+Write-Host "Verified both package identities, visible entries, architectures, aliases, logos, licenses and executable hashes."
+Write-Host "Extracted $hostArchitecture CLI passed --version/--help; its launcher waited for input and closed on Enter. Installed activation and WACK still require validation."

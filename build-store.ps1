@@ -5,7 +5,8 @@ param(
     [string] $Version,
 
     [string] $BinaryDirectory = "dist",
-    [string] $OutputDirectory = "dist-store"
+    [string] $OutputDirectory = "dist-store",
+    [string] $Scanner = ""
 )
 
 Set-StrictMode -Version Latest
@@ -48,6 +49,36 @@ foreach ($arch in @("amd64", "arm64")) {
     $layout = Join-Path $stagingRoot $packageArch
     $null = New-Item -ItemType Directory -Force -Path $layout
     Copy-Item -LiteralPath $binary -Destination (Join-Path $layout "skopeo.exe")
+    $launcher = Join-Path $layout "store-launcher.exe"
+    $savedCgo = $env:CGO_ENABLED
+    $savedGoos = $env:GOOS
+    $savedGoarch = $env:GOARCH
+    Push-Location -LiteralPath $repositoryRoot
+    try {
+        $env:CGO_ENABLED = "0"
+        $env:GOOS = "windows"
+        $env:GOARCH = $arch
+        & $go.Source build -buildvcs=false -trimpath `
+            -tags "containers_image_openpgp exclude_graphdriver_btrfs" `
+            -ldflags "-buildid= -X go.podman.io/skopeo/version.Version=$Version" `
+            -o $launcher ./cmd/store-launcher
+        if ($LASTEXITCODE -ne 0) { throw "Store launcher build failed for $arch" }
+    } finally {
+        Pop-Location
+        $env:CGO_ENABLED = $savedCgo
+        $env:GOOS = $savedGoos
+        $env:GOARCH = $savedGoarch
+    }
+    & $go.Source run (Join-Path $repositoryRoot "hack/verify-windows-binary.go") $launcher $arch
+    if ($LASTEXITCODE -ne 0) { throw "Invalid Windows Store launcher: $arch" }
+    if ($Scanner -ne "") {
+        $scannerPath = (Get-Command $Scanner -ErrorAction Stop).Source
+        $reportRoot = Join-Path $repositoryRoot ".cache/vulnerability-scan"
+        $null = New-Item -ItemType Directory -Force -Path $reportRoot
+        & $scannerPath -mode binary -scan package $launcher 2>&1 |
+            Tee-Object -FilePath (Join-Path $reportRoot "store-launcher-$arch.txt")
+        if ($LASTEXITCODE -ne 0) { throw "Store launcher vulnerability scan failed for $arch" }
+    }
     foreach ($document in @("LICENSE", "WINDOWS.md")) {
         Copy-Item -LiteralPath (Join-Path $repositoryRoot $document) -Destination $layout
     }

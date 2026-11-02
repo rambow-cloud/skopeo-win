@@ -18,7 +18,7 @@ try {
     $env:GOOS = "windows"
     $env:GOARCH = "amd64"
 
-    & $scannerPath -tags "containers_image_openpgp,exclude_graphdriver_btrfs" ./cmd/skopeo 2>&1 |
+    & $scannerPath -tags "containers_image_openpgp,exclude_graphdriver_btrfs" ./cmd/skopeo ./cmd/store-launcher 2>&1 |
         Tee-Object -FilePath (Join-Path $reportDirectory "source.txt")
     if ($LASTEXITCODE -ne 0) {
         throw "Source vulnerability scan failed. See .cache/vulnerability-scan/source.txt"

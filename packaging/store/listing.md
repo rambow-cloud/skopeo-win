@@ -46,8 +46,9 @@ it does not run containers or provide a graphical interface.
 
 ## Certification notes
 
-This is a console application without a Start-menu entry or graphical window.
-Open PowerShell or Windows Terminal after installation and run:
+The Start-menu entry opens a console usage window that waits for Enter before
+closing. The actual CLI is available through execution aliases. Open PowerShell
+or Windows Terminal after installation and run:
 
 ```powershell
 skopeo-win --version
@@ -64,9 +65,12 @@ Settings. An existing executable earlier on PATH can take precedence over an
 alias.
 
 The `runFullTrust` capability is required to run the existing Win32 console
-executable, make registry connections, and read/write user-selected image,
-configuration, credential and signature files. It does not request automatic
-administrator elevation.
+executable and its usage-window launcher outside AppContainer. CLI commands make
+registry connections and read/write user-selected image, configuration, credential
+and signature files. The launcher displays local usage instructions and performs
+no network operations. Neither executable requests automatic administrator
+elevation. This is the justification for the restricted capability approval;
+the application uses a visible default entry and does not require a headless waiver.
 
 ## Screenshots and declarations
 
