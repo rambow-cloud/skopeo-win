@@ -41,7 +41,7 @@ Do not use this option if at all avoidable.
 $ skopeo generate-sigstore-key --output-prefix mykey
 ```
 
-# SEE ALSO
+## SEE ALSO
 skopeo(1), skopeo-copy(1), containers-policy.json(5)
 
 ## AUTHORS

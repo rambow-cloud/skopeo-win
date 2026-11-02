@@ -332,12 +332,14 @@ func (opts *imageDestOptions) warnAboutIneffectiveOptions(destTransport types.Im
 // sharedCopyOptions collects CLI flags that affect copying images, currently shared between the copy and sync commands.
 type sharedCopyOptions struct {
 	removeSignatures         bool                      // Do not copy signatures from the source image
+	removeListSignatures     bool                      // Remove only manifest-list signatures
 	signByFingerprint        string                    // Sign the image using a GPG key with the specified fingerprint
 	signBySequoiaFingerprint string                    // Sign the image using a Sequoia-PGP key with the specified fingerprint
 	signBySigstoreParamFile  string                    // Sign the image using a sigstore signature per configuration in a param file
 	signBySigstorePrivateKey string                    // Sign the image using a sigstore private key
 	signPassphraseFile       string                    // Path pointing to a passphrase file when signing
 	preserveDigests          bool                      // Preserve digests during copy
+	downloadForeignLayers    bool                      // Download nondistributable layers during copy
 	format                   commonFlag.OptionalString // Force conversion of the image to a specified format
 }
 
@@ -346,6 +348,7 @@ func sharedCopyFlags() (pflag.FlagSet, *sharedCopyOptions) {
 	opts := sharedCopyOptions{}
 	fs := pflag.FlagSet{}
 	fs.BoolVar(&opts.removeSignatures, "remove-signatures", false, "Do not copy signatures from source")
+	fs.BoolVar(&opts.removeListSignatures, "remove-list-signatures", false, "Do not copy manifest list signatures (preserves per-instance signatures)")
 	fs.StringVar(&opts.signByFingerprint, "sign-by", "", "Sign the image using a GPG key with the specified `FINGERPRINT`")
 	fs.StringVar(&opts.signBySequoiaFingerprint, "sign-by-sq-fingerprint", "", "Sign the image using a Sequoia-PGP key with the specified `FINGERPRINT`")
 	fs.StringVar(&opts.signBySigstoreParamFile, "sign-by-sigstore", "", "Sign the image using a sigstore parameter file at `PATH`")
@@ -353,12 +356,16 @@ func sharedCopyFlags() (pflag.FlagSet, *sharedCopyOptions) {
 	fs.StringVar(&opts.signPassphraseFile, "sign-passphrase-file", "", "Read a passphrase for signing an image from `PATH`")
 	fs.VarP(commonFlag.NewOptionalStringValue(&opts.format), "format", "f", `MANIFEST TYPE (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)`)
 	fs.BoolVar(&opts.preserveDigests, "preserve-digests", false, "Preserve digests of images and lists")
+	fs.BoolVar(&opts.downloadForeignLayers, "download-foreign-layers", false, "Download nondistributable (foreign) layers")
 	return fs, &opts
 }
 
 // copyOptions interprets opts, returns a partially-filled *copy.Options,
 // and a function that should be called to clean up.
 func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, func(), error) {
+	if opts.removeSignatures && opts.removeListSignatures {
+		return nil, nil, errors.New("--remove-signatures and --remove-list-signatures are mutually exclusive")
+	}
 	var manifestType string
 	if opts.format.Present() {
 		mt, err := parseManifestFormat(opts.format.Value())
@@ -453,6 +460,7 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 	succeeded = true
 	return &copy.Options{
 		RemoveSignatures:                 opts.removeSignatures,
+		RemoveListSignatures:             opts.removeListSignatures,
 		Signers:                          signers,
 		SignBy:                           opts.signByFingerprint,
 		SignPassphrase:                   passphrase,
@@ -462,6 +470,7 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 		ReportWriter: stdout,
 
 		PreserveDigests:       opts.preserveDigests,
+		DownloadForeignLayers: opts.downloadForeignLayers,
 		ForceManifestMIMEType: manifestType,
 	}, closeSigners, nil
 }

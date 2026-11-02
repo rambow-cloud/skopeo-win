@@ -82,8 +82,8 @@ This commands refers to repositories using a _transport_`:`_details_ format. The
         "docker.io/myuser/myimage:v1.0"
         "docker.io/myuser/myimage@sha256:f48c4cc192f4c3c6a069cb5cca6d0a9e34d6076ba7c214fd0cc3ca60e0af76bb"
 
-  **docker-archive:path[:docker-reference]
-  more than one images were stored in a docker save-formatted file. 
+  **docker-archive:**_path_[**:**_docker-reference_]
+  Images stored in a `docker save`-formatted file.
 
 ## EXAMPLES
 
@@ -173,7 +173,7 @@ $ skopeo list-tags docker-archive:/tmp/four-tags-with-an-untag.tar
 ```
 
 
-# SEE ALSO
+## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-transports(1)
 
 ## AUTHORS

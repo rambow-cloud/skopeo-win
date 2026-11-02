@@ -54,6 +54,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 		RunE: commandAction(opts.run),
 		Example: `skopeo inspect docker://registry.fedoraproject.org/fedora
 skopeo inspect --config docker://docker.io/alpine
+skopeo inspect --override-os linux --override-arch amd64 docker://docker.io/library/alpine
 skopeo inspect --format "Name: {{.Name}} Digest: {{.Digest}}" docker://registry.access.redhat.com/ubi8`,
 		ValidArgsFunction: autocompleteImageNames,
 	}
@@ -80,7 +81,7 @@ func (opts *inspectOptions) run(args []string, stdout io.Writer) (retErr error) 
 	defer cancel()
 
 	if len(args) != 1 {
-		return errors.New("Exactly one argument expected")
+		return errorShouldDisplayUsage{errors.New("Exactly one argument expected")}
 	}
 	if opts.raw && opts.format != "" {
 		return errors.New("raw output does not support format option")

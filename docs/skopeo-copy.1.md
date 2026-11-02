@@ -97,6 +97,20 @@ Suppress output information when copying images.
 
 Do not copy signatures, if any, from _source-image_. Necessary when copying a signed image to a destination which does not support signatures.
 
+**--remove-list-signatures**
+
+Remove manifest-list signatures while preserving per-instance signatures. Mutually exclusive with **--remove-signatures**. Applies when copying a manifest list, not a single image.
+
+**--strip-removed-platforms**
+
+With a platform list in **--multi-arch**, omit unselected platforms from the destination manifest list. The default retains their entries and creates a sparse list. Stripping changes the list digest; use **--remove-list-signatures** to preserve instance signatures, or **--remove-signatures** to remove all signatures. Signed lists cannot be modified without explicit signature removal. **--preserve-digests** prevents changes to the list.
+
+Example: `skopeo copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures docker://registry.example.com/team/image:latest docker://mirror.example.com/team/image:latest`
+
+**--download-foreign-layers**
+
+Download nondistributable (foreign) layers, including Windows base-image layers, even when the destination supports external layer URLs. The default may preserve external references instead of downloading their contents. Downloading does not grant redistribution rights; check the image's license before redistributing these layers. This additive feature was selectively ported from upstream main after v1.24.1.
+
 **--sign-by** _key-id_
 
 Add a “simple signing” signature using that key ID for an image name corresponding to _destination-image_
@@ -186,8 +200,6 @@ Copy from docker daemon at _host_. If _host_ starts with `tcp://`, HTTPS is enab
 **--dest-daemon-host** _host_
 
 Copy to docker daemon at _host_. If _host_ starts with `tcp://`, HTTPS is enabled by default. To use plain HTTP, use the form `http://` (default is `unix:///var/run/docker.sock`).
-
-Existing signatures, if any, are preserved as well.
 
 **--dest-compress-format** _format_
 

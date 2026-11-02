@@ -46,8 +46,11 @@ func ensurePathDoesNotExist(path string) error {
 }
 
 func (opts *generateSigstoreKeyOptions) run(args []string, stdout io.Writer) error {
-	if len(args) != 0 || opts.outputPrefix == "" {
-		return errors.New("Usage: generate-sigstore-key --output-prefix PREFIX")
+	if len(args) != 0 {
+		return errorShouldDisplayUsage{errors.New("no arguments expected")}
+	}
+	if opts.outputPrefix == "" {
+		return errorShouldDisplayUsage{errors.New("--output-prefix must be specified")}
 	}
 
 	pubKeyPath := opts.outputPrefix + ".pub"
@@ -83,7 +86,7 @@ func (opts *generateSigstoreKeyOptions) run(args []string, stdout io.Writer) err
 		return fmt.Errorf("Error writing private key to %q: %w", privateKeyPath, err)
 	}
 	if err := os.WriteFile(pubKeyPath, keys.PublicKey, 0o644); err != nil {
-		return fmt.Errorf("Error writing private key to %q: %w", pubKeyPath, err)
+		return fmt.Errorf("Error writing public key to %q: %w", pubKeyPath, err)
 	}
 	fmt.Fprintf(stdout, "Key written to %q and %q\n", privateKeyPath, pubKeyPath)
 	return nil

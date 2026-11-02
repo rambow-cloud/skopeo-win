@@ -15,12 +15,15 @@ import (
 
 func TestGenerateSigstoreKey(t *testing.T) {
 	// Invalid command-line arguments
-	for _, args := range [][]string{
-		{},
-		{"--output-prefix", "foo", "a1"},
+	for _, tc := range []struct {
+		args    []string
+		message string
+	}{
+		{nil, "--output-prefix must be specified"},
+		{[]string{"--output-prefix", "foo", "a1"}, "no arguments expected"},
 	} {
-		out, err := runSkopeo(append([]string{"generate-sigstore-key"}, args...)...)
-		assertTestFailed(t, out, err, "Usage")
+		out, err := runSkopeo(append([]string{"generate-sigstore-key"}, tc.args...)...)
+		assertTestFailed(t, out, err, tc.message)
 	}
 
 	// One of the destination files already exists

@@ -395,14 +395,20 @@ func TestSharedCopyOptionsCopyOptions(t *testing.T) {
 				"--sign-by", "gpgFingerprint",
 				"--format", "oci",
 				"--preserve-digests",
+				"--download-foreign-layers",
 			},
 			expected: copy.Options{
 				RemoveSignatures:      true,
 				SignBy:                "gpgFingerprint",
 				ReportWriter:          &someStdout,
 				PreserveDigests:       true,
+				DownloadForeignLayers: true,
 				ForceManifestMIMEType: imgspecv1.MediaTypeImageManifest,
 			},
+		},
+		{
+			options:  []string{"--remove-list-signatures"},
+			expected: copy.Options{RemoveListSignatures: true, ReportWriter: &someStdout},
 		},
 		{ // --sign-passphrase-file + --sign-by work
 			options: []string{
@@ -470,6 +476,7 @@ func TestSharedCopyOptionsCopyOptions(t *testing.T) {
 
 	for _, opts := range [][]string{
 		{"--format", "invalid"}, // Invalid --format
+		{"--remove-signatures", "--remove-list-signatures"},
 		// More --sign-by-sigstore-private-key, --sign-by-sigstore failure cases should be tested here.
 		// --sign-passphrase-file + more than one key option
 		{"--sign-by", "gpgFingerprint", "--sign-by-sq-fingerprint", "sqFingerprint", "--sign-passphrase-file", passphraseFile},
