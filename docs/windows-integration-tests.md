@@ -13,6 +13,8 @@ From the repository root in PowerShell:
 
 The script requires the built executable and fails if it is absent. It sets an absolute executable path, isolates credential/configuration directories, disables CGO for the test harness, and runs with the committed integration module checksums in readonly mode. Child commands have a 30-second timeout; the suite has a five-minute timeout. Every invocation, exit result, stdout, stderr, and Go test event is retained in `.cache/integration-tests/windows-amd64.jsonl`. No test is skipped because the binary is missing.
 
+Go toolchain diagnostics, including dependency-download progress, are stored separately in `.cache/integration-tests/go-stderr.log` so the JSONL event stream remains parseable. Both files are uploaded by CI. Executable stdout/stderr remain part of their corresponding JSON test events.
+
 The integration module is separate from the production module. Its registry implementation is test infrastructure and is not linked into the released executable or added to the production vendor tree. Keep its Go version aligned with the production module and update its dependencies/checksums through reviewed changes.
 
 ## Coverage
