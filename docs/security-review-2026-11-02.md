@@ -48,7 +48,9 @@ The rewritten service model computes asset digests from actual fixture bytes, re
 - Complete executable integration: **19 top-level tests, 70 entries including subtests, 0 failures, 0 skipped tests, 112 executable invocations**.
 - Windows amd64 and arm64 builds passed CGO/OpenPGP/PE-import checks. ARM64 was not executed.
 - Source and both binary vulnerability gates passed with zero applicable findings. The existing one module-only advisory remains visible without suppression; these scans cannot detect an unpublished logic flaw such as the confirmed key race.
-- Version-allocation fuzzing passed 683,894 evaluations in 15 seconds with two workers. Private CI evidence is recorded in the accompanying private review. No live public release API mutation was used as a test.
+- Version-allocation fuzzing passed 683,894 evaluations in 15 seconds with two workers. No live public release API mutation was used as a test.
+
+The patch is available in [private PR #1](https://github.com/rambow-cloud/skopeo-win-ghsa-94rg-p8r7-w6f3/pull/1). GitHub does not run status checks or expose CI integrations in temporary security-advisory forks, as its [private-fork documentation](https://docs.github.com/en/code-security/tutorials/fix-reported-vulnerabilities/collaborate-in-a-fork) explicitly states. Consequently these are local verification results, not a claimed private CI pass. The public release workflow must validate the eventual disclosed merge before publishing a fixed distribution.
 
 ## Delivery boundary
 
