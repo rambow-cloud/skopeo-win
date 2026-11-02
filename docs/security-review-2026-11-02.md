@@ -1,6 +1,6 @@
-# Private security review: recent independent-maintenance changes
+# Security review: recent independent-maintenance changes
 
-This report and its patch remain private pending maintainer disclosure coordination under [SECURITY.md](../SECURITY.md). Private draft: [GHSA-94rg-p8r7-w6f3](https://github.com/rambow-cloud/skopeo-win/security/advisories/GHSA-94rg-p8r7-w6f3). No CVE or public disclosure is claimed.
+This report and patch were prepared privately under [SECURITY.md](../SECURITY.md). After review, the maintainer authorized merging the fix into public main. Maintainer tracking: [GHSA-94rg-p8r7-w6f3](https://github.com/rambow-cloud/skopeo-win/security/advisories/GHSA-94rg-p8r7-w6f3), which may remain a private draft until separately published. No CVE assignment is claimed.
 
 ## Scope
 
@@ -52,6 +52,6 @@ The rewritten service model computes asset digests from actual fixture bytes, re
 
 The patch is available in [private PR #1](https://github.com/rambow-cloud/skopeo-win-ghsa-94rg-p8r7-w6f3/pull/1). GitHub does not run status checks or expose CI integrations in temporary security-advisory forks, as its [private-fork documentation](https://docs.github.com/en/code-security/tutorials/fix-reported-vulnerabilities/collaborate-in-a-fork) explicitly states. Consequently these are local verification results, not a claimed private CI pass. The public release workflow must validate the eventual disclosed merge before publishing a fixed distribution.
 
-## Delivery boundary
+## Delivery and disclosure
 
-The fix, report and reproduction belong in the temporary private advisory fork. Public main and its immutable releases remain unchanged until the maintainers coordinate disclosure, including the inherited-code question with upstream. No upstream messages or CVE request are part of this review.
+The fix, report and reproduction were reviewed in the temporary private advisory fork. The maintainer has authorized the reviewed merge into public main; the normal publication pipeline must verify that merge before delivering a fixed distribution. Existing release assets remain immutable. Publishing the advisory, requesting a CVE, and notifying upstream are separate actions and are not implied by merging this patch.
