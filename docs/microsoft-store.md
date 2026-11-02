@@ -32,32 +32,43 @@ the executable; they do not upload development versions to the Store.
 ## Package layout and verification
 
 The unsigned bundle contains x64 and ARM64 MSIX packages. Each contains the
-corresponding verified executable, license, Windows usage instructions, application
+corresponding verified executable, a native usage-window launcher, license, Windows usage instructions, application
 manifest, and rasterized project badge. There is no third-party C runtime or
 container daemon bundled. The application targets Windows desktop 10.0.19041.0
 and newer. It declares `runFullTrust` to run the native console application.
 
 Two execution aliases are registered: `skopeo.exe` and `skopeo-win.exe`. The
-application has no Start-menu entry; use a terminal. Windows Settings can disable
-aliases, and an existing executable earlier on PATH can take precedence.
+application has a visible Start-menu entry that displays terminal usage instructions
+and waits for Enter before closing. The aliases invoke `skopeo.exe` directly.
+Windows Settings can disable aliases, and an existing executable earlier on PATH
+can take precedence.
+
+`AppListEntry="default"` is required by this distribution. Setting it to `none`
+creates a headless app that Partner Center rejects without a HeadlessAppBypass
+waiver. MakeAppx validation alone does not enforce that Store-specific permission.
+The package verifier explicitly rejects hidden entries. The initial 1.0.6.0
+bundle was rejected for this reason; upload the newer fixed bundle instead.
 
 Local reproduction, with stable versioned binaries and their checksum files:
 
 ```powershell
-./build-store.ps1 -Version 1.0.5 -BinaryDirectory dist
+./build-store.ps1 -Version 1.0.5 -BinaryDirectory dist -Scanner govulncheck
 ./hack/test-store-package.ps1 -Bundle dist-store/skopeo-win-1.0.5.0.msixbundle -Version 1.0.5
 ```
 
 The script downloads the Microsoft-owned SDK BuildTools NuGet archive at a pinned
 version and verifies its SHA-256 before extraction. No system SDK installation is
-required. MakeAppx performs its normal schema and semantic validation; validation
+required. The example also requires govulncheck v1.9.0 on PATH; Actions installs
+it automatically and scans both launcher binaries before uploading the bundle.
+MakeAppx performs its normal schema and semantic validation; validation
 is not disabled. A new staging directory prevents previous package contents from
 leaking into a bundle. Existing output bundles are not overwritten.
 
 The verification script checks both architectures, bundle/package identities,
-publisher, four-component versions, command alias configuration, capabilities,
+publisher, four-component versions, visible application entry, command alias configuration, capabilities,
 logo dimensions, license bytes, and exact executable SHA-256 values. It runs
-`--version` and `--help` from the extracted native package. This is package-content
+`--version` and `--help` from the extracted native package and checks that its
+launcher prints usage, waits for input, and closes after Enter. This is package-content
 and executable validation, not a test of installed package activation. ARM64
 execution is only checked on an ARM64 host.
 
@@ -76,6 +87,11 @@ bundle in **Packages**. Complete pricing and availability, properties, age ratin
 Store listings with actual screenshots, and the `runFullTrust` explanation. Use
 `packaging/store/listing.md` as a listing/certification draft and publish the
 privacy policy URL after its changes reach main.
+
+When replacing a rejected upload, remove that failed package from the draft and
+upload the new incremented bundle. The runFullTrust approval warning is separate
+from headless validation: keep that capability for the Win32 executables and
+provide the explanation in the listing draft. Do not remove it to hide a warning.
 
 Microsoft signs MSIX packages during publication after certification. A CA-trusted
 certificate or SignPath approval is not required for this Store submission. This
