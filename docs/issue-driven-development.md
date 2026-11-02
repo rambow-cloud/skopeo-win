@@ -8,7 +8,7 @@ Use the [issue chooser](https://github.com/rambow-cloud/skopeo-win/issues/new/ch
 
 - **Bug report:** a reproducible failure, environment, expected behavior, and actual behavior.
 - **Feature request:** a user need, proposed outcome, and observable acceptance criteria.
-- **Implementation task:** a bounded work item covering build, CI, signing, upstream synchronization, documentation, or release maintenance.
+- **Implementation task:** a bounded work item covering build, CI, signing, selected feature ports, dependency updates, documentation, or release maintenance.
 - **Security fix:** remediation of an already disclosed vulnerability or non-sensitive hardening, with affected versions, public references, verification, and release impact.
 
 For new or undisclosed vulnerabilities, follow [SECURITY.md](../SECURITY.md) and use a private vulnerability report instead of a public issue. Plan, implement, and review the fix privately until coordinated disclosure; the public issue-first requirement does not apply to this work.
@@ -71,4 +71,4 @@ This is a contributor workflow supported by templates, not a branch protection r
 
 Merge after review and relevant checks pass. If the issue requires a published artifact or external action, use `Refs #N` and keep it open until that outcome is verified. Record the final PR, CI run, and release link when relevant before closing the issue.
 
-Pushes to `main` currently publish or replace assets for the version in `version/version.go`. Account for this in the issue's release impact, including changes that only affect documentation. Follow-up work should have its own issue.
+Successful `main` push builds publish a new independent patch version under the [release policy](release-policy.md), including documentation changes. Existing published assets are not replaced. Follow-up work should have its own issue. Port selected features through scoped issues and PRs rather than bulk-merging upstream source releases.

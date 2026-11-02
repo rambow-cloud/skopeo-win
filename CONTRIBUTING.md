@@ -6,6 +6,11 @@ Follow our [issue-driven development workflow](docs/issue-driven-development.md)
 for changes here. The upstream contribution requirements below remain applicable
 unless this document explicitly describes a distribution-specific process.
 
+This project uses independent [release versioning](docs/release-policy.md).
+Contributions focus on bug fixes, security updates, and selected feature ports.
+Do not bulk-merge upstream Skopeo source releases. Dependency updates and focused
+ports must preserve Windows compatibility, licensing, and the pure-Go build.
+
 We'd love to have you join the community! Below summarizes the processes
 that we follow.
 

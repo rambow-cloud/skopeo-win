@@ -1,5 +1,5 @@
 name: Implementation task
-description: Plan issue-driven work such as upstream updates, CI, documentation, signing, or release maintenance.
+description: Plan feature ports, dependency updates, CI, documentation, signing, or release maintenance.
 title: "[Task]: "
 body:
   - type: dropdown
@@ -10,7 +10,7 @@ body:
         - Windows build and compatibility
         - CI and release automation
         - Code signing and distribution
-        - Upstream synchronization
+        - Selected feature port or dependency update
         - Documentation and community
         - Other
     validations:

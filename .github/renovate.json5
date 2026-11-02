@@ -38,8 +38,8 @@
 
   // Re-use predefined sets of configuration options to DRY
   "extends": [
-    // https://github.com/containers/automation/blob/main/renovate/defaults.json5
-    "github>containers/automation//renovate/defaults.json5"
+    // Dependency updates are independent of upstream Skopeo source releases.
+    "config:recommended"
   ],
 
   // Permit automatic rebasing when base-branch changes by more than

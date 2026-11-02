@@ -4,16 +4,21 @@
 
 ----
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/containers/skopeo)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10516/badge)](https://www.bestpractices.dev/projects/10516)
+[![Latest skopeo-win release](https://img.shields.io/github/v/release/rambow-cloud/skopeo-win?sort=date)](https://github.com/rambow-cloud/skopeo-win/releases/latest)
 
-> **Windows:** This fork provides verified amd64 and arm64 binaries built with
+> **Windows:** skopeo-win provides verified amd64 and arm64 binaries built with
 > `CGO_ENABLED=0`, with no GPGME or C runtime dependency. See
 > [WINDOWS.md](WINDOWS.md) for building and usage instructions.
 
 For Windows distribution reports and planned work, use the
 [issue templates](https://github.com/rambow-cloud/skopeo-win/issues/new/choose).
 Contributors should follow the [issue-driven development workflow](docs/issue-driven-development.md).
+
+This project is independently maintained by Rambow Cloud. It originated from
+Skopeo v1.23.0, but uses its own release numbers starting at v1.0.0. Maintenance
+focuses on bug fixes, security updates, and selected feature ports through
+reviewed issues and PRs; upstream source releases are not bulk-merged. See the
+[release policy](docs/release-policy.md).
 
 `skopeo` is a command line utility that performs various operations on container images and image repositories.
 
