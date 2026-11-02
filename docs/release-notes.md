@@ -1,5 +1,7 @@
 ## Features
 
+- **Microsoft Store packaging:** stable main builds produce a separate x64/ARM64 MSIX bundle with `skopeo` and `skopeo-win` command aliases and the registered RambowCloud identity. Actions can also package an existing immutable release without rebuilding or replacing its executables. Store signing and publication require Microsoft certification; the workflow uploads submission artifacts, not a live Store listing.
+
 - **Selective manifest-list signatures:** `copy` and `sync` support `--remove-list-signatures`, removing list signatures while preserving per-platform signatures. It cannot be combined with `--remove-signatures` and is intended for manifest-list copies.
 - **Platform subset copies:** `copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures` creates a manifest list containing only the chosen platform. The default still creates a sparse list. Signed lists and `--preserve-digests` continue to prevent prohibited manifest changes.
 - **Foreign-layer downloads:** `copy` and `sync` expose opt-in `--download-foreign-layers` for nondistributable layers, including Windows base-image layers. External references remain the default where the destination supports them. Layer licenses still govern redistribution. This capability was selectively ported from upstream development main after v1.24.1.
