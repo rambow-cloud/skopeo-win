@@ -2,6 +2,8 @@
 
 Tracking issue: [#1](https://github.com/rambow-cloud/skopeo-win/issues/1).
 
+This report records the earlier remediation release. Its upstream-aligned publication policy has since been replaced by the [independent release policy](release-policy.md).
+
 ## Scope and baseline
 
 The scan uses govulncheck v1.9.0 and the live Go vulnerability database. Production source is analyzed for Windows with CGO disabled and the `containers_image_openpgp exclude_graphdriver_btrfs` build tags. Release executables are also scanned directly.

@@ -17,7 +17,7 @@ import (
 	"go.podman.io/storage/pkg/reexec"
 )
 
-var defaultUserAgent = "skopeo/" + version.Version
+var defaultUserAgent = "skopeo-win/" + version.Version
 
 type globalOptions struct {
 	debug              bool                    // Enable debug output

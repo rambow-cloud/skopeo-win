@@ -5,6 +5,9 @@ param(
 
     [string] $OutputDirectory = "dist",
 
+    [ValidatePattern('^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')]
+    [string] $Version = "0.0.0-dev",
+
     [switch] $KeepDebugSymbols = $true
 )
 
@@ -37,7 +40,7 @@ try {
         $env:GOARCH = $arch
         $outputPath = Join-Path $outputRoot "skopeo-windows-$arch.exe"
 
-        $ldflags = "-buildid= -X go.podman.io/image/v5/signature/internal/sequoia.sequoiaLibraryDir="
+        $ldflags = "-buildid= -X go.podman.io/skopeo/version.Version=$Version -X go.podman.io/image/v5/signature/internal/sequoia.sequoiaLibraryDir="
         if (-not $KeepDebugSymbols) {
             $ldflags = "-s -w $ldflags"
         }

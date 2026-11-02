@@ -1,4 +1,4 @@
 package version
 
-// Version is the version of the build.
-const Version = "1.23.0"
+// Version is the independent skopeo-win version, injected into release builds.
+var Version = "0.0.0-dev"

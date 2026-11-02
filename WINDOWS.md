@@ -1,6 +1,6 @@
 # Skopeo for Windows (Pure Go Build)
 
-This repository is based on upstream Skopeo v1.23.0 and produces native Windows executables without GCC, MSYS2, GPGME, or other third-party C libraries. The build enforces `CGO_ENABLED=0` and selects the pure-Go OpenPGP implementation with the `containers_image_openpgp` build tag.
+This independently maintained project originated from Skopeo v1.23.0 and produces native Windows executables without GCC, MSYS2, GPGME, or other third-party C libraries. Its release versions are independent of Skopeo. The build enforces `CGO_ENABLED=0` and selects the pure-Go OpenPGP implementation with the `containers_image_openpgp` build tag.
 
 ## Build
 
@@ -15,6 +15,8 @@ By default, the script creates `dist\skopeo-windows-amd64.exe` and its SHA-256 c
 ```powershell
 .\build-windows.ps1 -Architecture amd64,arm64
 ```
+
+Local builds identify themselves as `0.0.0-dev`. To reproduce a tagged release version, use `-Version 1.0.0` from that tag's source. CI allocates its version automatically before building.
 
 Debug symbols are retained by default so binary vulnerability scans can identify packages accurately. Stripped PE executables make govulncheck fall back to conservative module-level matching. Release builds must retain symbols; `-KeepDebugSymbols:$false` is available only for custom size-optimized builds that will not pass the same scan guarantees.
 
@@ -42,13 +44,15 @@ For private registries, use `skopeo login registry.example.com` or pass `--creds
 
 Common transports that do not depend on Linux container storage drivers are supported, including remote registries, `dir:`, `oci:`, `oci-archive:`, and `docker-archive:`. The upstream experimental hidden `proxy` command explicitly does not support Windows. Workflows that require Linux namespaces, mounts, or Linux graph drivers are outside the scope of this executable.
 
-## Updating from upstream
+## Independent maintenance
 
-The core command and image-processing code remains unchanged from upstream. To update this fork, merge a newer stable Skopeo release and then run `build-windows.ps1 -Architecture amd64,arm64`. The build metadata and PE checks in the script act as upgrade gates, and CI runs the same process before uploading artifacts.
+Bug fixes, security updates, and selected feature ports are implemented through scoped issues and reviewed PRs. Do not bulk-merge upstream Skopeo source releases or copy their version constants. Dependency upgrades remain supported and must pass Windows compatibility and vulnerability checks. Preserve applicable upstream copyright and license notices when porting a feature.
 
 ## Automatic releases
 
-Every push to `main` builds and verifies both Windows architectures. The workflow reads the version from `version/version.go`, creates a matching `vX.Y.Z` GitHub Release, and uploads both executables and SHA-256 files. If a release for that upstream version already exists, its binary assets are replaced with the newly verified build instead of creating a second version.
+Successful `main` push builds and manual `main` runs publish independent releases starting at `v1.0.0`. Each new release increments the patch number. The version is allocated before compilation and embedded in the executables, so `--version` matches the release tag. PRs and local builds use development versions.
+
+Publication first creates a draft, verifies all four uploaded asset digests, and then makes it public. A release-job retry resumes missing draft uploads or verifies an already published release without modifying it. Published files and tags are never overwritten or moved. Historical `v1.23.0` is retained but excluded from the independent counter. See [release-policy.md](docs/release-policy.md) for details.
 
 ## Vulnerability checks
 
