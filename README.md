@@ -20,6 +20,9 @@ focuses on bug fixes, security updates, and selected feature ports through
 reviewed issues and PRs; upstream source releases are not bulk-merged. See the
 [release policy](docs/release-policy.md).
 
+See the [upstream gap assessment](docs/upstream-gap-2026-11-02.md) for pinned
+upstream comparisons, selected feature ports, and Windows-specific scope.
+
 `skopeo` is a command line utility that performs various operations on container images and image repositories.
 
 `skopeo` does not require the user to be running as root to do most of its operations.

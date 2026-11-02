@@ -20,7 +20,7 @@ skopeo -- Command line utility used to interact with local and remote container 
 
 `skopeo` can delete container images from a remote container registry.
 
-Note: `skopeo` does not require any container runtimes to be running, to do most of
+Note: `skopeo` does not require any container runtimes to be running to do most of
 its functionality.  It also does not require root, unless you are copying images into a container runtime storage backend, like the docker daemon or github.com/containers/storage.
 
 ## IMAGE NAMES
@@ -58,7 +58,7 @@ Individual subcommands have their own options.
 
 **--command-timeout** _duration_
 
-Timeout for the command execution.
+Timeout for the command execution (e.g. 30s, 10m).
 
 **--debug**
 

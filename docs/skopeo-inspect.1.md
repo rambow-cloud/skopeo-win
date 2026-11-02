@@ -198,7 +198,7 @@ $ skopeo inspect --manifest-digest=sha512 docker://docker.io/library/alpine:late
 Digest: sha512:5acb33fb56a7791bf0c69d5b19a1c70272148e4107be5261d57305d14e9509792bbca53e5277c456181ecfa1c20ad8427f9b8ba46868020584a819de1128dbd2
 ```
 
-# SEE ALSO
+## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5)
 
 ## AUTHORS

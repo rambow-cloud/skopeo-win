@@ -20,22 +20,23 @@ import (
 )
 
 type copyOptions struct {
-	global              *globalOptions
-	deprecatedTLSVerify *deprecatedTLSVerifyOption
-	srcImage            *imageOptions
-	destImage           *imageDestOptions
-	retryOpts           *retry.Options
-	copy                *sharedCopyOptions
-	additionalTags      []string                  // For docker-archive: destinations, in addition to the name:tag specified as destination, also add these
-	signIdentity        string                    // Identity of the signed image, must be a fully specified docker reference
-	digestFile          string                    // Write digest to this file
-	quiet               bool                      // Suppress output information when copying images
-	all                 bool                      // Copy all of the images if the source is a list
-	multiArch           commonFlag.OptionalString // How to handle multi architecture images
-	encryptLayer        []int                     // The list of layers to encrypt
-	encryptionKeys      []string                  // Keys needed to encrypt the image
-	decryptionKeys      []string                  // Keys needed to decrypt the image
-	imageParallelCopies uint                      // Maximum number of parallel requests when copying images
+	global                *globalOptions
+	deprecatedTLSVerify   *deprecatedTLSVerifyOption
+	srcImage              *imageOptions
+	destImage             *imageDestOptions
+	retryOpts             *retry.Options
+	copy                  *sharedCopyOptions
+	additionalTags        []string                  // For docker-archive: destinations, in addition to the name:tag specified as destination, also add these
+	signIdentity          string                    // Identity of the signed image, must be a fully specified docker reference
+	digestFile            string                    // Write digest to this file
+	quiet                 bool                      // Suppress output information when copying images
+	all                   bool                      // Copy all of the images if the source is a list
+	stripRemovedPlatforms bool                      // Remove unselected platforms from the destination list
+	multiArch             commonFlag.OptionalString // How to handle multi architecture images
+	encryptLayer          []int                     // The list of layers to encrypt
+	encryptionKeys        []string                  // Keys needed to encrypt the image
+	decryptionKeys        []string                  // Keys needed to decrypt the image
+	imageParallelCopies   uint                      // Maximum number of parallel requests when copying images
 }
 
 func copyCmd(global *globalOptions) *cobra.Command {
@@ -78,6 +79,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	flags.StringSliceVar(&opts.additionalTags, "additional-tag", []string{}, "additional tags (supports docker-archive)")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Suppress output information when copying images")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Copy all images if SOURCE-IMAGE is a list")
+	flags.BoolVar(&opts.stripRemovedPlatforms, "strip-removed-platforms", false, "Strip removed platforms when copying specific platforms (requires signature removal)")
 	flags.Var(commonFlag.NewOptionalStringValue(&opts.multiArch), "multi-arch", `How to handle multi-architecture images (system, all, index-only, or comma-separated platform list like linux/amd64,linux/arm64)`)
 	flags.StringVar(&opts.signIdentity, "sign-identity", "", "Identity of signed image, must be a fully specified docker reference. Defaults to the target docker reference.")
 	flags.StringVar(&opts.digestFile, "digestfile", "", "Write the digest of the pushed image to the specified file")
@@ -257,6 +259,11 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	copyOpts.OciEncryptConfig = encConfig
 	copyOpts.MaxParallelDownloads = opts.imageParallelCopies
 	copyOpts.ForceCompressionFormat = opts.destImage.forceCompressionFormat
+	if opts.stripRemovedPlatforms {
+		copyOpts.SparseManifestListAction = copy.StripSparseManifestList
+	} else {
+		copyOpts.SparseManifestListAction = copy.KeepSparseManifestList
+	}
 
 	return retry.IfNecessary(ctx, func() error {
 		manifestBytes, err := copy.Image(ctx, policyContext, destRef, srcRef, copyOpts)

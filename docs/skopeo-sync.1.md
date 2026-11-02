@@ -90,6 +90,10 @@ This option does not change what will be copied; consider using `--all` at the s
 
 **--remove-signatures** Do not copy signatures, if any, from _source-image_. This is necessary when copying a signed image to a destination which does not support signatures.
 
+**--remove-list-signatures** Remove manifest-list signatures while retaining per-instance signatures when copying lists with **--all**. Mutually exclusive with **--remove-signatures**; not applicable to single-image copies.
+
+**--download-foreign-layers** Download nondistributable (foreign) layers even if the destination supports external layer URLs. Disabled by default. Ensure that the layer licenses permit redistribution. Selectively ported from upstream main after v1.24.1.
+
 **--sign-by** _key-id_
 
 Add a “simple signing” signature using that key ID for an image name corresponding to _destination-image_
