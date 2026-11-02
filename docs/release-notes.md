@@ -16,4 +16,5 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 
 - Release publication is gated on command/release tests, English-only documentation, source and both binary vulnerability scans, and executable integration tests on Windows amd64.
 - Integration tests start the built executable as separate processes against a local OCI Registry implementation and local layer server. They cover registry push/pull, inspect/list-tags, platform selection, signatures, digest conflicts, sync, and foreign-layer defaults/opt-in downloads.
+- CI uploads parseable JSON test events separately from Go toolchain diagnostics, including first-time dependency-download messages. Executable stdout/stderr and exit results remain in the JSON events.
 - These local integration tests do not certify hosted registries, Windows container execution, the entire upstream Linux integration suite, or ARM64 runtime behavior. Vulnerability scan reports remain available in the linked CI run, including any module-only advisory that is not applicable to imported or compiled packages.
