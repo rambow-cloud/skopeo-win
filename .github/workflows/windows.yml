@@ -26,6 +26,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          cache-dependency-path: |
+            go.sum
+            tests/windows/go.sum
       - name: Allocate independent version
         id: version
         shell: pwsh
@@ -54,6 +57,19 @@ jobs:
         env:
           CGO_ENABLED: '0'
         run: go test -tags "containers_image_openpgp exclude_graphdriver_btrfs" ./cmd/skopeo/... ./cmd/release ./internal/release ./version
+      - name: Run Windows executable and OCI registry integration tests
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.version }}
+        run: ./hack/test-windows-integration.ps1 -ExpectedVersion $env:BUILD_VERSION
+      - name: Upload executable integration reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-integration-test-reports
+          path: .cache/integration-tests/*.jsonl
+          include-hidden-files: true
+          if-no-files-found: ignore
       - name: Install vulnerability scanner
         shell: pwsh
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0

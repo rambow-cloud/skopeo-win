@@ -12,6 +12,10 @@ PR builds use `0.0.0-dev.<commit>` and local builds default to `0.0.0-dev`. `ver
 
 ## Publication and retries
 
+Every PR updates [the reviewed release summary](release-notes.md) with user-facing feature descriptions, defaults, compatibility limits, and accurate verification scope. This file is a snapshot for the next publication, not a claim that every included capability is newly introduced in that patch. The publisher combines it with the allocated version, exact source commit, workflow link, and binary limitations. Empty or missing summaries fail publication. A manual rebuild of the same commit uses the same reviewed summary with a new independent patch version; later edits affect future publications only.
+
+Release publication requires the Windows executable integration suite in addition to command/release tests and vulnerability gates. See [Windows integration tests](windows-integration-tests.md) for coverage and local execution. Publication retries preserve existing public notes and assets. Maintainers may explicitly correct release-description text to document actual behavior and evidence without changing tags or binary assets.
+
 Main workflows are serialized by the workflow concurrency group. A publisher rejects tags pointing to another commit and releases belonging to another workflow run. If a separately created tag collides with an allocation, publication fails instead of moving the tag or replacing files.
 
 After the build, tests, and vulnerability checks pass, the publication job:

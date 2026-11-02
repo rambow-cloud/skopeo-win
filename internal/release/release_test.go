@@ -84,7 +84,13 @@ func (f *fakeGH) run(args ...string) ([]byte, error) {
 	f.mutations = append(f.mutations, args[1])
 	switch args[1] {
 	case "create":
-		f.releases = append(f.releases, Release{Tag: args[2], Draft: true, Body: marker("123")})
+		var body string
+		for i, arg := range args {
+			if arg == "--notes" && i+1 < len(args) {
+				body = args[i+1]
+			}
+		}
+		f.releases = append(f.releases, Release{Tag: args[2], Draft: true, Body: body})
 	case "upload":
 		name := filepath.Base(args[3])
 		if name == f.failAsset {
@@ -122,12 +128,15 @@ func fixture(t *testing.T) (string, map[string]string) {
 func TestPublishAndRetry(t *testing.T) {
 	dir, expected := fixture(t)
 	f := &fakeGH{expected: expected}
-	m := Manager{Run: f.run, Repo: "owner/repo", Commit: testCommit, RunID: "123"}
+	m := Manager{Run: f.run, Repo: "owner/repo", Commit: testCommit, RunID: "123", Summary: "## Features\n\n- Selective platform copying."}
 	if err := m.Publish("1.0.0", dir); err != nil {
 		t.Fatal(err)
 	}
 	if f.releases[0].Draft || len(f.releases[0].Assets) != 4 {
 		t.Fatal("did not publish all four assets")
+	}
+	if !strings.Contains(f.releases[0].Body, "- Selective platform copying.") || !strings.Contains(f.releases[0].Body, marker("123")) {
+		t.Fatal("published release lost its feature summary or retry marker")
 	}
 	f.mutations = nil
 	if err := m.Publish("1.0.0", dir); err != nil {
@@ -141,7 +150,7 @@ func TestPublishAndRetry(t *testing.T) {
 func TestInterruptedUploadResumesWithoutReplacingAssets(t *testing.T) {
 	dir, expected := fixture(t)
 	f := &fakeGH{expected: expected, failAsset: "skopeo-windows-arm64.exe"}
-	m := Manager{Run: f.run, Repo: "owner/repo", Commit: testCommit, RunID: "123"}
+	m := Manager{Run: f.run, Repo: "owner/repo", Commit: testCommit, RunID: "123", Summary: "Reviewed changes"}
 	if err := m.Publish("1.0.0", dir); err == nil {
 		t.Fatal("expected upload failure")
 	}
@@ -186,7 +195,7 @@ func TestRejectUnsafePublication(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			m := Manager{Run: f.run, Repo: "owner/repo", Commit: testCommit, RunID: "123"}
+			m := Manager{Run: f.run, Repo: "owner/repo", Commit: testCommit, RunID: "123", Summary: "Reviewed changes"}
 			if err := m.Publish(version, dir); err == nil {
 				t.Fatal("expected publication refusal")
 			}

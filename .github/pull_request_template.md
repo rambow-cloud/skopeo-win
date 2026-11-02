@@ -27,4 +27,5 @@ Closes #<!-- Replace with the issue number. Use "Refs #N" for partial work. -->
 - [ ] Relevant checks were run and results are recorded above; skipped checks have an explanation.
 - [ ] Windows amd64/arm64 and CGO-disabled support are preserved, or unaffected by this change.
 - [ ] User-facing documentation is updated where needed and remains English-only.
+- [ ] `docs/release-notes.md` describes the included features, defaults, and actual verification scope for the next publication.
 - [ ] Commits include the required DCO sign-off.

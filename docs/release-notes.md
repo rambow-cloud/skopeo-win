@@ -1,0 +1,19 @@
+## Features
+
+- **Selective manifest-list signatures:** `copy` and `sync` support `--remove-list-signatures`, removing list signatures while preserving per-platform signatures. It cannot be combined with `--remove-signatures` and is intended for manifest-list copies.
+- **Platform subset copies:** `copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures` creates a manifest list containing only the chosen platform. The default still creates a sparse list. Signed lists and `--preserve-digests` continue to prevent prohibited manifest changes.
+- **Foreign-layer downloads:** `copy` and `sync` expose opt-in `--download-foreign-layers` for nondistributable layers, including Windows base-image layers. External references remain the default where the destination supports them. Layer licenses still govern redistribution. This capability was selectively ported from upstream development main after v1.24.1.
+
+Downloading a foreign layer does not guarantee a self-contained offline mirror: the current image library may retain external URLs in the manifest, and subsequent CLI pulls prefer those URLs even if the registry stores the layer. An unavailable external server can therefore still cause pulls to fail.
+
+## Fixes and maintenance
+
+- Sync uses maintained `go.yaml.in/yaml/v3` v3.0.5, and common is v0.69.2; newer image/storage security dependencies are retained.
+- Invalid command arguments display actionable help; public-key write errors identify the correct file. Help includes duration units and OS/architecture override examples.
+- Automated releases now include this reviewed feature and verification summary alongside their source and CI links. Independent patch versions continue to increase without replacing published binaries or moving tags.
+
+## Verification
+
+- Release publication is gated on command/release tests, English-only documentation, source and both binary vulnerability scans, and executable integration tests on Windows amd64.
+- Integration tests start the built executable as separate processes against a local OCI Registry implementation and local layer server. They cover registry push/pull, inspect/list-tags, platform selection, signatures, digest conflicts, sync, and foreign-layer defaults/opt-in downloads.
+- These local integration tests do not certify hosted registries, Windows container execution, the entire upstream Linux integration suite, or ARM64 runtime behavior. Vulnerability scan reports remain available in the linked CI run, including any module-only advisory that is not applicable to imported or compiled packages.

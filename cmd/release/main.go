@@ -14,6 +14,7 @@ func run() error {
 	mode := flag.String("mode", "plan", "plan or publish")
 	version := flag.String("version", "", "allocated independent version")
 	assets := flag.String("assets", "dist", "directory containing the four release files")
+	notesFile := flag.String("notes-file", "docs/release-notes.md", "reviewed Markdown release summary")
 	output := flag.String("output", "", "append version and tag to a GitHub Actions output file")
 	preview := flag.Bool("preview", false, "produce a development version without accessing GitHub")
 	flag.Parse()
@@ -50,6 +51,11 @@ func run() error {
 		}
 		return nil
 	case "publish":
+		summary, err := os.ReadFile(*notesFile)
+		if err != nil {
+			return fmt.Errorf("reading release summary: %w", err)
+		}
+		m.Summary = string(summary)
 		return m.Publish(*version, *assets)
 	default:
 		return fmt.Errorf("unknown mode %q", *mode)
