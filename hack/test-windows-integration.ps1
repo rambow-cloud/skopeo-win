@@ -19,7 +19,7 @@ try {
     $env:SKOPEO_BINARY = $binaryPath
     $env:SKOPEO_EXPECTED_VERSION = $ExpectedVersion
     $env:CGO_ENABLED = "0"
-    go test -mod=readonly -count=1 -timeout=5m -json ./... 2>&1 |
+    go test -mod=readonly -count=1 -timeout=5m -json ./... 2> (Join-Path $reportDirectory "go-stderr.log") |
         Tee-Object -FilePath (Join-Path $reportDirectory "windows-amd64.jsonl")
     if ($LASTEXITCODE -ne 0) {
         throw "Windows executable integration tests failed. See .cache/integration-tests/windows-amd64.jsonl"
