@@ -32,13 +32,28 @@ func TestSigstoreKeyGenerationAndOverwriteProtection(t *testing.T) {
 func TestPublicKeyWriteFailureIdentifiesPublicKey(t *testing.T) {
 	c := newCLI(t)
 	prefix := filepath.Join(t.TempDir(), "key")
+	r := keyCommandAfterValidation(t, c, prefix, "error writing public key", func() {
+		if err := os.Mkdir(prefix+".pub", 0o755); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if r.exitCode != 1 || strings.Contains(string(r.stderr), "Error writing private key") {
+		t.Fatalf("wrong public-key diagnostic: %s", r.stderr)
+	}
+	if !strings.Contains(string(read(t, prefix+".private")), "PRIVATE KEY") {
+		t.Fatal("private key must have been written before public-key failure")
+	}
+}
+
+func keyCommandAfterValidation(t *testing.T, c cli, prefix, wantError string, mutation func()) commandResult {
+	t.Helper()
 	pipePath := fmt.Sprintf(`\\.\pipe\skopeo-win-key-%d-%d`, os.Getpid(), time.Now().UnixNano())
 	listener, err := winio.ListenPipe(pipePath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	r := c.execute(t, "error writing public key", func(ctx context.Context) {
+	return c.execute(t, wantError, func(ctx context.Context) {
 		stop := make(chan struct{})
 		defer close(stop)
 		go func() {
@@ -53,20 +68,37 @@ func TestPublicKeyWriteFailureIdentifiesPublicKey(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { _ = conn.Close() })
-		// The CLI opens its passphrase only after checking both output paths.
-		// Hold that read, make the public output a directory, then release it.
-		// This forces the real write error without sleeps, races, or symlinks.
-		if err := os.Mkdir(prefix+".pub", 0o755); err != nil {
-			t.Fatal(err)
-		}
+		// Passphrase input is opened after initial output validation. Mutate
+		// the output while this read is held, then release the executable.
+		mutation()
 		if _, err := conn.Write([]byte("integration-only-passphrase\n")); err != nil {
 			t.Fatal(err)
 		}
 	}, "generate-sigstore-key", "--output-prefix", prefix, "--passphrase-file", pipePath)
-	if r.exitCode != 1 || strings.Contains(string(r.stderr), "Error writing private key") {
-		t.Fatalf("wrong public-key diagnostic: %s", r.stderr)
-	}
-	if !strings.Contains(string(read(t, prefix+".private")), "PRIVATE KEY") {
-		t.Fatal("private key must have been written before public-key failure")
+}
+
+func TestKeyOutputRaceDoesNotClobberLinkedFiles(t *testing.T) {
+	for _, suffix := range []string{".private", ".pub"} {
+		t.Run(suffix, func(t *testing.T) {
+			c := newCLI(t)
+			prefix := filepath.Join(t.TempDir(), "key")
+			victim := filepath.Join(t.TempDir(), "unrelated-file")
+			sentinel := "unrelated contents must survive"
+			write(t, victim, []byte(sentinel))
+			t.Cleanup(func() {
+				if string(read(t, victim)) != sentinel {
+					t.Error("key generation overwrote a linked file outside the output directory")
+				}
+			})
+			kind := "private"
+			if suffix == ".pub" {
+				kind = "public"
+			}
+			keyCommandAfterValidation(t, c, prefix, "error writing "+kind+" key", func() {
+				if err := os.Link(victim, prefix+suffix); err != nil {
+					t.Fatal(err)
+				}
+			})
+		})
 	}
 }

@@ -8,6 +8,10 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 
 ## Fixes and maintenance
 
+- **Key-output safety:** key generation now creates output files exclusively at the write boundary and refuses links or files introduced after its initial validation. Existing unrelated files remain unchanged. Use a trusted output directory; exploitation of the former race required local directory/link permissions and the invoker's target-file rights.
+- **Publication state checks:** the publisher binds a draft to its numeric release ID and rechecks its ownership, tag and asset digests after upload. If another actor has already published the same verified release, retries do not edit it again.
+- **Security test redesign:** replaced shallow key-output checks and positional release mocks with real-filesystem concurrency tests, a strict release-service model, version-allocation fuzzing, and executable trust-policy/integrity regressions. Existing upstream command tests and pure-Go OpenPGP checks are retained.
+
 - **Windows directory sync:** fixed destination image names for `sync --src=dir --dest=docker`. Native filesystem paths are now converted to registry-relative names without embedding a Windows drive or backslashes. Absolute/relative inputs, trailing separators, and scoped nested directories have executable regression coverage.
 
 - Sync uses maintained `go.yaml.in/yaml/v3` v3.0.5, and common is v0.69.2; newer image/storage security dependencies are retained.

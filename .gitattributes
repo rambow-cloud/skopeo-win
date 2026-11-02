@@ -1,2 +1,3 @@
 # Signed fixtures and expected digests must be byte-identical on every platform.
 /cmd/skopeo/fixtures/** -text
+/tests/windows/fixtures/** -text

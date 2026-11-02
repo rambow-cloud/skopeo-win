@@ -32,6 +32,7 @@ type Asset struct {
 }
 
 type Release struct {
+	ID     int64   `json:"id"`
 	Tag    string  `json:"tag_name"`
 	Body   string  `json:"body"`
 	Draft  bool    `json:"draft"`
@@ -251,6 +252,9 @@ func (m Manager) Publish(version, dir string) error {
 		}
 	}
 	if current != nil {
+		if current.ID <= 0 {
+			return fmt.Errorf("release %s has no valid identity", tag)
+		}
 		if !strings.Contains(current.Body, marker(m.RunID)) {
 			return fmt.Errorf("release %s belongs to a different run", tag)
 		}
@@ -276,11 +280,18 @@ func (m Manager) Publish(version, dir string) error {
 				return err
 			}
 		}
-		_, err = m.Run("release", "create", tag, "--repo", m.Repo, "--target", m.Commit, "--title", "skopeo-win "+tag, "--notes", notes, "--draft", "--verify-tag")
+		created, createErr := m.Run("api", "--method", "POST", "repos/"+m.Repo+"/releases", "-f", "tag_name="+tag, "-f", "target_commitish="+m.Commit, "-f", "name=skopeo-win "+tag, "-f", "body="+notes, "-F", "draft=true")
+		err = createErr
 		if err != nil {
 			return err
 		}
-		current = &Release{Tag: tag, Draft: true}
+		current = &Release{}
+		if err := json.Unmarshal(created, current); err != nil {
+			return fmt.Errorf("reading created draft: %w", err)
+		}
+		if current.ID <= 0 || current.Tag != tag || !current.Draft || !strings.Contains(current.Body, marker(m.RunID)) {
+			return fmt.Errorf("created release does not match the requested draft")
+		}
 	}
 	for _, name := range []string{"skopeo-windows-amd64.exe", "skopeo-windows-amd64.exe.sha256", "skopeo-windows-arm64.exe", "skopeo-windows-arm64.exe.sha256"} {
 		found := false
@@ -307,10 +318,16 @@ func (m Manager) Publish(version, dir string) error {
 		if r.Tag != tag {
 			continue
 		}
+		if r.ID != current.ID || !strings.Contains(r.Body, marker(m.RunID)) {
+			return fmt.Errorf("release identity or ownership changed during upload")
+		}
 		if err := ValidateAssets(r.Assets, expected, true); err != nil {
 			return err
 		}
-		_, err = m.Run("release", "edit", tag, "--repo", m.Repo, "--draft=false", "--latest")
+		if !r.Draft {
+			return nil
+		}
+		_, err = m.Run("api", "--method", "PATCH", "repos/"+m.Repo+"/releases/"+strconv.FormatInt(current.ID, 10), "-F", "draft=false", "-f", "make_latest=true")
 		return err
 	}
 	return fmt.Errorf("draft release %s disappeared", tag)
