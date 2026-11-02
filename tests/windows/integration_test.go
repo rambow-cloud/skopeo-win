@@ -48,8 +48,9 @@ func TestMain(m *testing.M) {
 }
 
 type cli struct {
-	root string
-	env  []string
+	root   string
+	env    []string
+	policy string
 }
 
 func newCLI(t *testing.T) cli {
@@ -73,7 +74,7 @@ func newCLI(t *testing.T) cli {
 		env = append(env, key+"="+root)
 	}
 	env = append(env, "REGISTRY_AUTH_FILE="+filepath.Join(root, "auth.json"), "NO_PROXY=127.0.0.1,localhost,::1")
-	return cli{root, env}
+	return cli{root: root, env: env}
 }
 
 func (c cli) run(t *testing.T, wantError string, args ...string) []byte {
@@ -90,7 +91,12 @@ func (c cli) execute(t *testing.T, wantError string, afterStart func(context.Con
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	global := []string{"--insecure-policy", "--registries-conf", filepath.Join(c.root, "registries.conf"), "--registries.d", filepath.Join(c.root, "registries.d")}
+	global := []string{"--registries-conf", filepath.Join(c.root, "registries.conf"), "--registries.d", filepath.Join(c.root, "registries.d")}
+	if c.policy == "" {
+		global = append(global, "--insecure-policy")
+	} else {
+		global = append(global, "--policy", c.policy)
+	}
 	cmd := exec.CommandContext(ctx, executable, append(global, args...)...)
 	cmd.Dir, cmd.Env = c.root, c.env
 	var stdout, stderr bytes.Buffer

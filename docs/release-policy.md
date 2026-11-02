@@ -25,6 +25,8 @@ After the build, tests, and vulnerability checks pass, the publication job:
 3. Uploads only missing assets, without `--clobber`.
 4. Checks the server-side digest of every asset before making the release public and marking it Latest.
 
+Draft creation records the server-assigned release ID. After uploading, the publisher revalidates that ID, workflow ownership, tag commit, and every asset digest, then publishes by ID. Replaced drafts or changed ownership fail closed. If the same verified release has already become public, the publisher returns without editing it. These checks constrain this publisher; a repository administrator with write access can still independently change GitHub release state.
+
 If an upload fails, the draft stays unpublished. Rerunning the failed publication job resumes missing files, but refuses any existing asset with different content. If publication already completed, a retry only verifies the tag and all four asset digests and returns without changing the release. Existing public releases with missing or mismatched files are not repaired in place; investigate and publish a new version instead.
 
 Do not delete/recreate published tags, overwrite assets, or edit a released binary. This is enforced by the project's publisher; it does not claim that GitHub repository administrators are technically unable to change a release through other tools.

@@ -20,12 +20,12 @@ func TestNotesPreserveReviewedContentAndProvenance(t *testing.T) {
 
 func TestMissingSummaryPreventsPublicationMutations(t *testing.T) {
 	for _, summary := range []string{"", " \n\t"} {
-		f := &fakeGH{}
-		m := Manager{Run: f.run, Repo: "owner/repo", Commit: testCommit, RunID: "123", Summary: summary}
+		called := false
+		m := Manager{Run: func(args ...string) ([]byte, error) { called = true; return nil, nil }, Repo: "owner/repo", Commit: testCommit, RunID: "123", Summary: summary}
 		if err := m.Publish("1.0.2", t.TempDir()); err == nil || !strings.Contains(err.Error(), "summary") {
 			t.Fatalf("expected summary error, got %v", err)
 		}
-		if len(f.mutations) != 0 {
+		if called {
 			t.Fatal("publication mutated GitHub without a summary")
 		}
 	}

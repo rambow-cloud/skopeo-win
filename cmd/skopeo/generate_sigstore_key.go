@@ -35,7 +35,7 @@ func generateSigstoreKeyCmd() *cobra.Command {
 // ensurePathDoesNotExist verifies that path does not refer to an existing file,
 // and returns an error if so.
 func ensurePathDoesNotExist(path string) error {
-	switch _, err := os.Stat(path); {
+	switch _, err := os.Lstat(path); {
 	case err == nil:
 		return fmt.Errorf("Refusing to overwrite existing %q", path)
 	case errors.Is(err, fs.ErrNotExist):
@@ -43,6 +43,16 @@ func ensurePathDoesNotExist(path string) error {
 	default:
 		return fmt.Errorf("Error checking existence of %q: %w", path, err)
 	}
+}
+
+// writeNewKeyFile enforces non-overwrite at creation, independently of preflight checks.
+func writeNewKeyFile(path string, data []byte, mode fs.FileMode) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		return err
+	}
+	_, writeErr := f.Write(data)
+	return errors.Join(writeErr, f.Close())
 }
 
 func (opts *generateSigstoreKeyOptions) run(args []string, stdout io.Writer) error {
@@ -82,10 +92,10 @@ func (opts *generateSigstoreKeyOptions) run(args []string, stdout io.Writer) err
 		return fmt.Errorf("Error generating key pair: %w", err)
 	}
 
-	if err := os.WriteFile(privateKeyPath, keys.PrivateKey, 0o600); err != nil {
+	if err := writeNewKeyFile(privateKeyPath, keys.PrivateKey, 0o600); err != nil {
 		return fmt.Errorf("Error writing private key to %q: %w", privateKeyPath, err)
 	}
-	if err := os.WriteFile(pubKeyPath, keys.PublicKey, 0o644); err != nil {
+	if err := writeNewKeyFile(pubKeyPath, keys.PublicKey, 0o644); err != nil {
 		return fmt.Errorf("Error writing public key to %q: %w", pubKeyPath, err)
 	}
 	fmt.Fprintf(stdout, "Key written to %q and %q\n", privateKeyPath, pubKeyPath)
