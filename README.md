@@ -10,6 +10,9 @@
 > `CGO_ENABLED=0`, with no GPGME or C runtime dependency. See
 > [WINDOWS.md](WINDOWS.md) for building and usage instructions.
 
+Microsoft Store packaging and submission instructions are in
+[Microsoft Store distribution](docs/microsoft-store.md).
+
 For Windows distribution reports and planned work, use the
 [issue templates](https://github.com/rambow-cloud/skopeo-win/issues/new/choose).
 Contributors should follow the [issue-driven development workflow](docs/issue-driven-development.md).

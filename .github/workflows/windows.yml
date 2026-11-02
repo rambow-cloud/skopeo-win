@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      store_release:
+        description: 'Existing release tag to package for Microsoft Store (empty = normal build/release)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -15,6 +21,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_dispatch' || inputs.store_release == ''
     runs-on: windows-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -86,6 +93,21 @@ jobs:
           path: .cache/vulnerability-scan/*.txt
           include-hidden-files: true
           if-no-files-found: ignore
+      - name: Package verified main binaries for Microsoft Store
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ./build-store.ps1 -Version $env:BUILD_VERSION
+          ./hack/test-store-package.ps1 -Bundle "dist-store/skopeo-win-$env:BUILD_VERSION.0.msixbundle" -Version $env:BUILD_VERSION
+      - name: Upload Microsoft Store submission bundle
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: microsoft-store-${{ steps.version.outputs.version }}
+          path: dist-store/*
+          if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: skopeo-windows
@@ -115,3 +137,66 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: go run ./cmd/release -mode publish -version $env:RELEASE_VERSION -assets dist
+  store:
+    name: Package an existing release for Microsoft Store
+    if: github.event_name == 'workflow_dispatch' && inputs.store_release != ''
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Download immutable released executables
+        id: source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STORE_RELEASE: ${{ inputs.store_release }}
+        run: |
+          if ($env:STORE_RELEASE -notmatch '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
+            throw 'store_release must be an independent stable release tag such as v1.0.5'
+          }
+          if ($env:STORE_RELEASE -eq 'v1.23.0') { throw 'The historical upstream-aligned release is not supported' }
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:STORE_RELEASE" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the requested release' }
+          if ($release.draft -or $release.prerelease -or $release.tag_name -cne $env:STORE_RELEASE) {
+            throw 'Only an existing published stable release can be packaged'
+          }
+          foreach ($arch in @('amd64', 'arm64')) {
+            foreach ($name in @("skopeo-windows-$arch.exe", "skopeo-windows-$arch.exe.sha256")) {
+              $asset = @($release.assets | Where-Object { $_.name -ceq $name })
+              if ($asset.Count -ne 1 -or $asset[0].digest -notmatch '^sha256:[a-f0-9]{64}$') {
+                throw "Missing release asset or GitHub SHA-256 digest: $name"
+              }
+              gh release download $env:STORE_RELEASE --repo $env:GITHUB_REPOSITORY --pattern $name --dir dist
+              if ($LASTEXITCODE -ne 0) { throw "Cannot download $name" }
+              $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath "dist/$name").Hash.ToLowerInvariant()
+              if ("sha256:$digest" -cne $asset[0].digest) { throw "GitHub release asset digest mismatch: $name" }
+            }
+          }
+          "version=$($env:STORE_RELEASE.Substring(1))" >> $env:GITHUB_OUTPUT
+      - name: Build and verify Microsoft Store bundle
+        shell: pwsh
+        env:
+          STORE_VERSION: ${{ steps.source.outputs.version }}
+        run: |
+          ./build-store.ps1 -Version $env:STORE_VERSION
+          ./hack/test-store-package.ps1 -Bundle "dist-store/skopeo-win-$env:STORE_VERSION.0.msixbundle" -Version $env:STORE_VERSION
+          @"
+          ## Microsoft Store submission bundle
+          - Source release: v$env:STORE_VERSION
+          - Package version: $env:STORE_VERSION.0
+          - Product: RambowCloud.skopeo-win (9MT5QPKZDHGD)
+          - Download the microsoft-store-$env:STORE_VERSION artifact and upload its .msixbundle in Partner Center.
+          - Store signing occurs after certification. Installation, activated aliases and WACK remain manual checks.
+          - No Partner Center upload or certification submission was performed by this workflow.
+          "@ >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload Microsoft Store submission bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: microsoft-store-${{ steps.source.outputs.version }}
+          path: dist-store/*
+          if-no-files-found: error
