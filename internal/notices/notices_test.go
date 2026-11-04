@@ -153,3 +153,52 @@ func TestTamperedPackageNoticesRejected(t *testing.T) {
 		})
 	}
 }
+
+func TestPinnedGoRootNotices(t *testing.T) {
+	for _, scenario := range []string{"valid", "wrong version", "changed snapshot", "missing snapshot", "missing runtime sources"} {
+		t.Run(scenario, func(t *testing.T) {
+			repository, goroot, inputs := fixture(t)
+			for _, name := range []string{"LICENSE", "PATENTS"} {
+				if err := os.Remove(filepath.Join(goroot, name)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			origin := "packaging/store/go-notices/go1.27.3/"
+			license, patents := []byte("Pinned fixture runtime license\n"), []byte("Pinned fixture patent grant\n")
+			writeFixture(t, repository, origin+"LICENSE", license)
+			writeFixture(t, repository, origin+"PATENTS", patents)
+			metadata := map[string]any{
+				"goVersion": "go1.27.3", "repository": "https://github.com/golang/go", "commit": strings.Repeat("a", 40),
+				"sha256": map[string]string{"LICENSE": digest(license), "PATENTS": digest(patents)},
+			}
+			if scenario == "wrong version" {
+				metadata["goVersion"] = "go1.25.6"
+			}
+			encoded, err := json.Marshal(metadata)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if scenario != "missing snapshot" {
+				writeFixture(t, repository, origin+"source.json", encoded)
+			}
+			if scenario == "changed snapshot" {
+				writeFixture(t, repository, origin+"LICENSE", []byte("Altered pinned license"))
+			}
+			if scenario == "missing runtime sources" {
+				if err := os.Remove(filepath.Join(goroot, "src", "runtime", "fixture.go")); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Remove(filepath.Join(goroot, "src", "runtime")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			files, err := buildFiles(repository, goroot, inputs)
+			if (err == nil) != (scenario == "valid") {
+				t.Fatalf("incorrect pinned snapshot acceptance for %s: %v", scenario, err)
+			}
+			if scenario == "valid" && (!bytes.Equal(files["go/LICENSE"], license) || !bytes.Contains(files["inventory.json"], []byte("https://github.com/golang/go/blob/"+strings.Repeat("a", 40)+"/LICENSE"))) {
+				t.Fatal("pinned license bytes or immutable origin were not retained")
+			}
+		})
+	}
+}

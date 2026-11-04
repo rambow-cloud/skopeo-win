@@ -161,7 +161,7 @@ func vendorVersions(data []byte) (map[string]string, error) {
 
 // collect preserves notice bytes and leading Go copyright/license comments.
 // Nested modules are inventoried independently, never attributed to their parent.
-func collect(root, prefix, origin string, skip func(string) bool) (map[string][]byte, []Notice, error) {
+func collect(root, prefix, origin string, requireLicense bool, skip func(string) bool) (map[string][]byte, []Notice, error) {
 	files := map[string][]byte{}
 	var notices []Notice
 	var copyrights bytes.Buffer
@@ -216,7 +216,7 @@ func collect(root, prefix, origin string, skip func(string) bool) (map[string][]
 	if err != nil {
 		return nil, nil, err
 	}
-	if !hasLicense {
+	if requireLicense && !hasLicense {
 		return nil, nil, fmt.Errorf("missing root license in %s; review the matching dependency sources", origin)
 	}
 	if copyrights.Len() != 0 {
@@ -229,6 +229,45 @@ func collect(root, prefix, origin string, skip func(string) bool) (map[string][]
 	}
 	slices.SortFunc(notices, func(a, b Notice) int { return strings.Compare(a.File, b.File) })
 	return files, notices, nil
+}
+
+// Some hosted Go installations omit root legal files. Only an explicitly
+// reviewed snapshot for that exact Go release can supply the missing bytes.
+func goRootNotices(repository, version string, files map[string][]byte, notices []Notice) ([]Notice, error) {
+	for _, name := range []string{"LICENSE", "PATENTS"} {
+		file := "go/" + name
+		if _, exists := files[file]; exists {
+			continue
+		}
+		origin := "packaging/store/go-notices/" + version
+		data, err := os.ReadFile(filepath.Join(repository, filepath.FromSlash(origin), "source.json"))
+		if err != nil {
+			return nil, fmt.Errorf("missing Go %s and no reviewed %s snapshot: %w", name, version, err)
+		}
+		var source struct {
+			GoVersion  string            `json:"goVersion"`
+			Repository string            `json:"repository"`
+			Commit     string            `json:"commit"`
+			SHA256     map[string]string `json:"sha256"`
+		}
+		if err := json.Unmarshal(data, &source); err != nil {
+			return nil, err
+		}
+		if source.GoVersion != version || source.Repository != "https://github.com/golang/go" || !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(source.Commit) {
+			return nil, fmt.Errorf("invalid pinned Go notice provenance for %s", version)
+		}
+		data, err = os.ReadFile(filepath.Join(repository, filepath.FromSlash(origin), name))
+		if err != nil {
+			return nil, err
+		}
+		if source.SHA256[name] != digest(data) {
+			return nil, fmt.Errorf("pinned Go %s checksum mismatch", name)
+		}
+		files[file] = data
+		notices = append(notices, Notice{file, origin + "/" + name + " (" + source.Repository + "/blob/" + source.Commit + "/" + name + ")", digest(data)})
+	}
+	slices.SortFunc(notices, func(a, b Notice) int { return strings.Compare(a.File, b.File) })
+	return notices, nil
 }
 
 func buildFiles(repository, goroot string, inputs []input) (map[string][]byte, error) {
@@ -266,9 +305,16 @@ func buildFiles(repository, goroot string, inputs []input) (map[string][]byte, e
 		slices.SortFunc(binary.Modules, func(a, b Module) int { return strings.Compare(a.Path, b.Path) })
 		inventory.Binaries = append(inventory.Binaries, binary)
 	}
-	files, goNotices, err := collect(goroot, "go", "GOROOT", func(rel string) bool {
+	if info, err := os.Stat(filepath.Join(goroot, "src", "runtime")); err != nil || !info.IsDir() {
+		return nil, fmt.Errorf("matching Go runtime source tree is required")
+	}
+	files, goNotices, err := collect(goroot, "go", "GOROOT", false, func(rel string) bool {
 		return rel == "pkg" || rel == "bin" || rel == "src/cmd" || rel == "test" || rel == "doc" || rel == "misc" || rel == "lib"
 	})
+	if err != nil {
+		return nil, err
+	}
+	goNotices, err = goRootNotices(repository, goVersion, files, goNotices)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +326,7 @@ func buildFiles(repository, goroot string, inputs []input) (map[string][]byte, e
 	slices.Sort(paths)
 	for _, module := range paths {
 		origin := "vendor/" + module
-		moduleFiles, notices, err := collect(filepath.Join(repository, filepath.FromSlash(origin)), "modules/"+module, origin, func(rel string) bool {
+		moduleFiles, notices, err := collect(filepath.Join(repository, filepath.FromSlash(origin)), "modules/"+module, origin, true, func(rel string) bool {
 			_, nested := versions[module+"/"+rel]
 			return nested
 		})

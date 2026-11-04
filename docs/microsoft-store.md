@@ -85,6 +85,13 @@ Nested module notices remain attributed to their own module. The Go runtime
 notices include a conservative superset from the matching Go source tree,
 excluding compiler tools and test data.
 
+If a hosted Go installation omits its root `LICENSE` or `PATENTS`, generation
+uses a checked-in, SHA-256-pinned snapshot from that exact Go release commit.
+The snapshot provenance and immutable upstream URL are recorded in the inventory.
+The runtime source tree and its matching `VERSION` are still required; no
+unmatched source tree or unverified latest download is substituted. See
+[`packaging/store/go-notices`](../packaging/store/go-notices/README.md).
+
 The inventory is derived from the packaged CLI and launcher's embedded build
 information. It records each executable hash, architecture, Go version, linked
 module versions, source paths, versioned module information links, notice hashes,
