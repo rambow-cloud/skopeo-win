@@ -97,6 +97,8 @@ foreach ($arch in @("amd64", "arm64")) {
     foreach ($document in @("LICENSE", "WINDOWS.md")) {
         Copy-Item -LiteralPath (Join-Path $repositoryRoot $document) -Destination $layout
     }
+    & $go.Source -C $repositoryRoot run ./cmd/store-notices -repository $repositoryRoot -layout $layout
+    if ($LASTEXITCODE -ne 0) { throw "Third-party notice generation failed for $arch" }
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "packaging/store/Assets") -Destination $layout -Recurse
     $manifest = $template.Replace("@VERSION@", $packageVersion).Replace("@ARCHITECTURE@", $packageArch)
     [IO.File]::WriteAllText((Join-Path $layout "AppxManifest.xml"), $manifest, $utf8)

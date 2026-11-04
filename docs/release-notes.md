@@ -12,6 +12,8 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 
 ## Fixes and maintenance
 
+- **Third-party Store notices:** both MSIX architectures now include notices inventoried from their actual CLI/launcher dependencies and matching Go source tree, with versions, source attribution and file hashes. Package checks reject missing or changed notices and incorrect inventories. Historical binary/source mismatches stop packaging instead of attaching unrelated license files. Portable release assets remain unchanged.
+
 - **Reliable sync planning:** invalid YAML selections and registry tag-discovery failures now produce a failing exit code instead of a misleading zero-image success. All Docker and YAML tag-discovery paths honor `--command-timeout`.
 - **Windows directory mirror round trips:** tagged and digest-selected registry images use reversible Windows-safe directory names. Encoded tag case stays distinct on case-insensitive filesystems; existing ordinary directory layouts remain readable. Scoped restores should use the exported source-registry directory as their source root to preserve repository namespaces.
 - **Read-only dry runs:** sync plans no longer create destination directory trees or digest files. Existing destination directories are still rejected.
