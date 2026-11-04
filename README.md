@@ -42,9 +42,6 @@ For portable use, download the executable for your architecture from
 Build and usage details are in [WINDOWS.md](WINDOWS.md). Windows binaries use
 `CGO_ENABLED=0` and require no GPGME or third-party C runtime.
 
-Store packaging and submission documentation is available in
-[Microsoft Store distribution](docs/microsoft-store.md).
-
 ## About this project
 
 For Windows distribution reports and planned work, use the
