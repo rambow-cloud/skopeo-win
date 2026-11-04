@@ -1,17 +1,51 @@
 <p align="center">
-   <img src="https://cdn.rawgit.com/containers/skopeo/main/docs/skopeo.svg" width="250" alt="Skopeo">
+   <img src="docs/skopeo.svg" width="150" alt="Skopeo">
 </p>
 
-----
-![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
-[![Latest skopeo-win release](https://img.shields.io/github/v/release/rambow-cloud/skopeo-win?sort=date)](https://github.com/rambow-cloud/skopeo-win/releases/latest)
+<h1 align="center">skopeo-win</h1>
 
-> **Windows:** skopeo-win provides verified amd64 and arm64 binaries built with
-> `CGO_ENABLED=0`, with no GPGME or C runtime dependency. See
-> [WINDOWS.md](WINDOWS.md) for building and usage instructions.
+<p align="center">
+   Inspect, copy and synchronize container images on Windows.<br>
+   Native x64 and ARM64 binaries. No container daemon required.
+</p>
 
-Microsoft Store packaging and submission instructions are in
+<p align="center">
+   <a href="https://apps.microsoft.com/detail/9MT5QPKZDHGD">
+      <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="280" alt="Download skopeo-win from Microsoft Store">
+   </a>
+</p>
+
+<p align="center">
+   <strong><a href="https://apps.microsoft.com/detail/9MT5QPKZDHGD">Get skopeo-win on Microsoft Store</a></strong><br>
+   <a href="https://github.com/rambow-cloud/skopeo-win/releases/latest">Portable downloads</a> &middot;
+   <a href="WINDOWS.md">Windows guide</a> &middot;
+   <a href="docs/release-notes.md">Release notes</a>
+</p>
+
+<p align="center">
+   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache License 2.0"></a>
+   <a href="https://github.com/rambow-cloud/skopeo-win/releases/latest"><img src="https://img.shields.io/github/v/release/rambow-cloud/skopeo-win?sort=date" alt="Latest skopeo-win release"></a>
+</p>
+
+## Get started on Windows
+
+Install from **[Microsoft Store](https://apps.microsoft.com/detail/9MT5QPKZDHGD)**,
+then open PowerShell or Windows Terminal:
+
+```powershell
+skopeo-win --version
+skopeo-win --help
+```
+
+For portable use, download the executable for your architecture from
+**[GitHub Releases](https://github.com/rambow-cloud/skopeo-win/releases/latest)**.
+Build and usage details are in [WINDOWS.md](WINDOWS.md). Windows binaries use
+`CGO_ENABLED=0` and require no GPGME or third-party C runtime.
+
+Store packaging and submission documentation is available in
 [Microsoft Store distribution](docs/microsoft-store.md).
+
+## About this project
 
 For Windows distribution reports and planned work, use the
 [issue templates](https://github.com/rambow-cloud/skopeo-win/issues/new/choose).
