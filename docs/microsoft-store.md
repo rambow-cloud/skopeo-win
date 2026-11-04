@@ -59,7 +59,9 @@ Local reproduction, with stable versioned binaries and their checksum files:
 The script downloads the Microsoft-owned SDK BuildTools NuGet archive at a pinned
 version and verifies its SHA-256 before extraction. No system SDK installation is
 required. The example also requires govulncheck v1.9.0 on PATH; Actions installs
-it automatically and scans both launcher binaries before uploading the bundle.
+it automatically and scans both CLI inputs and both launcher binaries before uploading the bundle.
+The CLI scan runs before SDK acquisition or packaging, including historical-release
+repackaging. A regression script rejects a scan failure for either CLI architecture.
 MakeAppx performs its normal schema and semantic validation; validation
 is not disabled. A new staging directory prevents previous package contents from
 leaking into a bundle. Existing output bundles are not overwritten.
@@ -100,9 +102,12 @@ See [MSIX package requirements](https://learn.microsoft.com/en-us/windows/apps/p
 
 ## Later automated submissions
 
-Actions artifact upload is implemented; Partner Center authentication and direct
-submission are not configured. Reserving a name and obtaining package identity
-does not grant the workflow permission to submit the app.
+The separate `Microsoft Store update` workflow consumes the versioned Store
+artifact from a successful main `Windows binaries` run after its portable release
+has been published. It checks the source workflow, branch, repository, current
+main SHA, immutable version tag, bundle hash, and verification report. PR runs
+cannot trigger submission. It requires Partner Center API authentication;
+reserving a name and obtaining package identity do not grant that permission.
 
 Microsoft's current [Actions guide](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/github-actions)
 requires an already published free app, an associated Microsoft Entra tenant,
@@ -112,11 +117,30 @@ also require creating the first submission in Partner Center and completing its
 age-rating questionnaire before API-created submissions.
 
 After that setup, store `AZURE_AD_TENANT_ID`, `AZURE_AD_APPLICATION_CLIENT_ID`,
-`AZURE_AD_APPLICATION_SECRET`, and `SELLER_ID` as GitHub Actions secrets. The MSA
+and `AZURE_AD_APPLICATION_SECRET` as GitHub Actions secrets. `SELLER_ID` is also
+needed if using Microsoft's Developer CLI instead of this direct API workflow. The MSA
 app ID, package SID, and package publisher GUID are not substitutes for these
 credentials. Never paste the client secret into issues, workflow source, or chat.
-Configure the Microsoft Store Developer CLI only after this authorization exists,
-and decide whether updates should remain drafts or be committed for certification.
+The workflow uses the documented submission API and never prints tokens, client
+secrets, upload SAS URLs, or raw response bodies. It refuses an existing pending
+submission rather than deleting or replacing that draft. A new submission copies
+the last published metadata; only packages, English release notes, and the
+post-certification publication mode are updated. Existing pricing, screenshots,
+descriptions, capability explanations, and rollout settings are preserved.
+
+Updates must increase the live package version. The new submission is committed
+for certification with immediate publication after approval. API acceptance is
+reported separately from a live Store release. The non-secret submission ID,
+version, bundle hash and status are retained in the
+`microsoft-store-submission-status` artifact. Do not edit an API-created submission
+in Partner Center while the API is managing it; see
+[Microsoft's submission guidance](https://learn.microsoft.com/en-us/windows/uwp/monetize/manage-app-submissions).
+
+If credentials are missing, this separate workflow fails explicitly without
+claiming an upload. After configuring credentials, run `Microsoft Store update`
+manually on `main` and provide the successful main Windows run ID as `run_id`.
+If a submission already exists after an interrupted attempt, inspect its status
+in Partner Center before taking further action; reruns do not delete drafts.
 
 ## Artwork
 

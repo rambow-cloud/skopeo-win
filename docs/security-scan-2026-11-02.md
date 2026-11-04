@@ -35,13 +35,13 @@ Dependency versions and vendored sources are regenerated together. OpenPGP chang
 - Upstream ocicrypt PGP key-wrapping tests pass with the upgraded module versions.
 - Command tests use the platform null device and quoted Windows paths, and signed fixtures are protected from Git line-ending conversion. The command suite runs without excluding a whole test; only symlink-specific subtests skip when Windows reports missing privilege 1314.
 
-GO-2026-5932 remains a module-level advisory because other maintained packages from `golang.org/x/crypto` are still needed. The unsafe `golang.org/x/crypto/openpgp` package and all its subpackages are absent from the production dependency graph and both symbol-preserving binaries. The advisory has no fixed x/crypto version. No advisory suppression is used: reports retain the module-only finding, while source and binary package checks verify the vulnerable package is absent.
+GO-2026-5932 remains a module-level advisory because other maintained packages from `golang.org/x/crypto` are still needed. The unsafe `golang.org/x/crypto/openpgp` package and all its subpackages are absent from the production dependency graph and both symbol-preserving binaries. The database now lists `v0.58.1-0.20261009181718-2f1f834330b2` as a fixed boundary for the root x/crypto module; this does not change the finding's module-only applicability to the recorded build. No advisory suppression is used: reports retain the module-only finding, while source and binary package checks verify the vulnerable package is absent.
 
 The original PE verifier used `debug/pe.ImportedLibraries`, which is a stub returning no entries. It now uses actual `ImportedSymbols` loader entries, so the historical empty import-table output must not be used as evidence of no DLL imports.
 
 ## Release gate and tooling
 
-CI builds both architectures, runs unit tests, scans production source and binary packages, and retains scan reports. Publication is a separate job with write permission and depends on the read-only build job succeeding. Release versions remain aligned with `version/version.go`; rebuilding the same version replaces its release assets under the repository's existing policy.
+CI builds both architectures, runs unit tests, scans production source and binary packages, and retains scan reports. Publication is a separate job with write permission and depends on the read-only build job succeeding. The historical upstream-aligned policy used for the original remediation has been replaced: current releases allocate independent increasing versions and never overwrite published assets or move existing tags. See the [release policy](release-policy.md).
 
 Official Actions are pinned to verified release commits: checkout 7.0.1, setup-go 7.0.0, upload-artifact 7.0.2, download-artifact 8.0.2, and stale 11.0.0. Inherited upstream-only Cirrus monitoring and issue-lock jobs are guarded so they do not run against this Windows distribution.
 
