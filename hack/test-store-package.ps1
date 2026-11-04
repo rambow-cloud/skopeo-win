@@ -19,6 +19,29 @@ function Assert-Equal($Actual, $Expected, [string] $Message) {
     if ($Actual -cne $Expected) { throw "$Message (actual: $Actual; expected: $Expected)" }
 }
 
+function Test-NoticeRejections([string] $Layout) {
+    # Modify only the extracted verification copy, never the input bundle.
+    $license = Join-Path $Layout "ThirdPartyNotices/go/LICENSE"
+    $original = [IO.File]::ReadAllBytes($license)
+    try {
+        foreach ($scenario in @("missing", "changed")) {
+            if ($scenario -eq "missing") {
+                Remove-Item -LiteralPath $license
+            } else {
+                [IO.File]::WriteAllText($license, "Synthetic altered notice for package verification.")
+            }
+            $diagnostics = & go -C $repositoryRoot run ./cmd/store-notices -repository $repositoryRoot -layout $Layout -verify 2>&1
+            if ($LASTEXITCODE -eq 0 -or ($diagnostics -join "`n") -notmatch '(missing notice file|notice content differs from matching sources)') {
+                throw "Package verification did not reject the $scenario third-party license: $diagnostics"
+            }
+            [IO.File]::WriteAllBytes($license, $original)
+        }
+    } finally {
+        [IO.File]::WriteAllBytes($license, $original)
+    }
+    $global:LASTEXITCODE = 0
+}
+
 $expectedName = "RambowCloud.skopeo-win"
 $expectedPublisher = "CN=7E0D1E09-4C91-4B76-9600-126B6A63FA59"
 $packageVersion = "$Version.0"
@@ -69,6 +92,9 @@ foreach ($arch in @("x64", "arm64")) {
     & go run (Join-Path $repositoryRoot "hack/verify-windows-binary.go") $launcher $sourceArch
     if ($LASTEXITCODE -ne 0) { throw "Wrong Store launcher architecture or runtime dependencies" }
     Assert-Equal (Get-Content -Raw -LiteralPath (Join-Path $layout "LICENSE")) (Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot "LICENSE")) "License changed during packaging"
+    & go -C $repositoryRoot run ./cmd/store-notices -repository $repositoryRoot -layout $layout -verify
+    if ($LASTEXITCODE -ne 0) { throw "Third-party notice inventory or package content differs from matching sources: $arch" }
+    Test-NoticeRejections $layout
     foreach ($asset in @(@("StoreLogo", 50), @("Square44x44Logo", 44), @("Square150x150Logo", 150))) {
         $image = [Drawing.Image]::FromFile((Join-Path $layout "Assets/$($asset[0]).png"))
         try {
@@ -126,6 +152,8 @@ $report = [ordered]@{
     packagedExecutableSHA256 = $hashes
     manifestAndContentVerified = $true
     visibleApplicationEntryVerified = $true
+    thirdPartyNoticesVerified = $true
+    thirdPartyNoticeRejectionTestsPassed = $true
     nativeExecutableSmokeTest = $hostArchitecture
     nativeLauncherInputTest = $hostArchitecture
     installedPackageTested = $false

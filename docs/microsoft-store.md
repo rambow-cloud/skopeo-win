@@ -32,7 +32,8 @@ the executable; they do not upload development versions to the Store.
 ## Package layout and verification
 
 The unsigned bundle contains x64 and ARM64 MSIX packages. Each contains the
-corresponding verified executable, a native usage-window launcher, license, Windows usage instructions, application
+corresponding verified executable, a native usage-window launcher, project license,
+third-party notices, Windows usage instructions, application
 manifest, and rasterized project badge. There is no third-party C runtime or
 container daemon bundled. The application targets Windows desktop 10.0.19041.0
 and newer. It declares `runFullTrust` to run the native console application.
@@ -74,6 +75,48 @@ launcher prints usage, waits for input, and closes after Enter. This is package-
 and executable validation, not a test of installed package activation. ARM64
 execution is only checked on an ARM64 host.
 
+### Third-party notices and historical releases
+
+Each architecture contains `ThirdPartyNotices/README.txt`, `inventory.json`, and
+the license, NOTICE, copyright, patent and author files found in its matched
+dependency sources. Leading copyright/license comments from Go, assembly and C
+header sources are retained in per-component `SOURCE-COPYRIGHTS.txt` files.
+Nested module notices remain attributed to their own module. The Go runtime
+notices include a conservative superset from the matching Go source tree,
+excluding compiler tools and test data.
+
+If a hosted Go installation omits its root `LICENSE` or `PATENTS`, generation
+uses a checked-in, SHA-256-pinned snapshot from that exact Go release commit.
+The snapshot provenance and immutable upstream URL are recorded in the inventory.
+The runtime source tree and its matching `VERSION` are still required; no
+unmatched source tree or unverified latest download is substituted. See
+[`packaging/store/go-notices`](../packaging/store/go-notices/README.md).
+
+The inventory is derived from the packaged CLI and launcher's embedded build
+information. It records each executable hash, architecture, Go version, linked
+module versions, source paths, versioned module information links, notice hashes,
+and the vendored module manifest hash. Module license and notice files are copied
+byte-for-byte; the root Apache license does not replace third-party terms.
+
+Packaging fails if a linked module's version differs from `vendor/modules.txt`,
+a root dependency license is missing, replacement modules need review, or the
+binary's Go version differs from the available Go source tree. Historical
+repackaging therefore requires matching dependency and Go sources. Use the
+corresponding source checkout/toolchain, or publish an updated build; the script
+does not substitute current notices for unmatched historical dependencies or
+download mutable latest license files.
+
+Package verification regenerates the expected inventory from the extracted
+executables and the matched sources, compares every notice byte, and rejects
+missing, altered or unexpected files. It also checks that removing or altering
+the extracted Go license is rejected in both architectures, restoring the test
+copy afterwards. `verification.json` records `thirdPartyNoticesVerified` and
+`thirdPartyNoticeRejectionTestsPassed`. The input bundle is not modified.
+
+The package source checkout and matching vendored dependencies are available in
+the repository's versioned release tags. This adds files inside the MSIX payload;
+the portable release's four-file contract is unchanged.
+
 Before submitting, install a suitably signed test package or register the
 development layout on a test machine configured for development. Check the
 installed aliases, working directory, stdin/stdout/exit codes, user-selected image
@@ -105,7 +148,8 @@ See [MSIX package requirements](https://learn.microsoft.com/en-us/windows/apps/p
 The separate `Microsoft Store update` workflow consumes the versioned Store
 artifact from a successful main `Windows binaries` run after its portable release
 has been published. It checks the source workflow, branch, repository, current
-main SHA, immutable version tag, bundle hash, and verification report. PR runs
+main SHA, immutable version tag, bundle hash, and verification report, including
+successful third-party notice and rejection checks. PR runs
 cannot trigger submission. It requires Partner Center API authentication;
 reserving a name and obtaining package identity do not grant that permission.
 

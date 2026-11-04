@@ -1,3 +1,5 @@
 # Signed fixtures and expected digests must be byte-identical on every platform.
 /cmd/skopeo/fixtures/** -text
 /tests/windows/fixtures/** -text
+# Preserve the bytes pinned in Go notice provenance records.
+/packaging/store/go-notices/** -text

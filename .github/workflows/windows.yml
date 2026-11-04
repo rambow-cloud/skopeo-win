@@ -63,7 +63,7 @@ jobs:
         shell: pwsh
         env:
           CGO_ENABLED: '0'
-        run: go test -tags "containers_image_openpgp exclude_graphdriver_btrfs" ./cmd/skopeo/... ./cmd/release ./internal/release ./version
+        run: go test -tags "containers_image_openpgp exclude_graphdriver_btrfs" ./cmd/skopeo/... ./cmd/release ./internal/release ./cmd/store-notices ./internal/notices ./version
       - name: Run Windows executable and OCI registry integration tests
         shell: pwsh
         env:

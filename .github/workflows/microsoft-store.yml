@@ -81,7 +81,8 @@ jobs:
           $verification = Get-Content -Raw store-input/verification.json | ConvertFrom-Json
           $hash = (Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($verification.packageVersion -cne "$version.0" -or $verification.bundleSHA256 -cne $hash -or
-              $verification.manifestAndContentVerified -ne $true -or $verification.visibleApplicationEntryVerified -ne $true) {
+              $verification.manifestAndContentVerified -ne $true -or $verification.visibleApplicationEntryVerified -ne $true -or
+              $verification.thirdPartyNoticesVerified -ne $true -or $verification.thirdPartyNoticeRejectionTestsPassed -ne $true) {
             throw 'Store verification report does not match the artifact'
           }
           "version=$version" >> $env:GITHUB_OUTPUT
