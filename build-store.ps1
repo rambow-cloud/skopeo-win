@@ -6,7 +6,8 @@ param(
 
     [string] $BinaryDirectory = "dist",
     [string] $OutputDirectory = "dist-store",
-    [string] $Scanner = ""
+    [string] $Scanner = "",
+    [string] $ScanReportDirectory = ".cache/vulnerability-scan"
 )
 
 Set-StrictMode -Version Latest
@@ -24,6 +25,20 @@ $bundleName = "skopeo-win-$packageVersion.msixbundle"
 $null = New-Item -ItemType Directory -Force -Path $outputRoot
 if (Test-Path -LiteralPath (Join-Path $outputRoot $bundleName)) {
     throw "Output already exists; use a new output directory or version: $bundleName"
+}
+
+# Check every CLI input before downloading the SDK or creating any package.
+# This gate also applies when Actions repackages a historical release.
+if ($Scanner -ne "") {
+    $scannerPath = (Get-Command $Scanner -ErrorAction Stop).Source
+    $reportRoot = if ([IO.Path]::IsPathRooted($ScanReportDirectory)) { $ScanReportDirectory } else { Join-Path $repositoryRoot $ScanReportDirectory }
+    $null = New-Item -ItemType Directory -Force -Path $reportRoot
+    foreach ($arch in @("amd64", "arm64")) {
+        $binary = Join-Path $binaryRoot "skopeo-windows-$arch.exe"
+        & $scannerPath -mode binary -scan package $binary 2>&1 |
+            Tee-Object -FilePath (Join-Path $reportRoot "store-cli-$arch.txt")
+        if ($LASTEXITCODE -ne 0) { throw "Store CLI vulnerability scan failed for $arch" }
+    }
 }
 
 $stagingRoot = Join-Path $repositoryRoot (".cache/store-packaging/" + [guid]::NewGuid().ToString("N"))
@@ -73,7 +88,7 @@ foreach ($arch in @("amd64", "arm64")) {
     if ($LASTEXITCODE -ne 0) { throw "Invalid Windows Store launcher: $arch" }
     if ($Scanner -ne "") {
         $scannerPath = (Get-Command $Scanner -ErrorAction Stop).Source
-        $reportRoot = Join-Path $repositoryRoot ".cache/vulnerability-scan"
+        $reportRoot = if ([IO.Path]::IsPathRooted($ScanReportDirectory)) { $ScanReportDirectory } else { Join-Path $repositoryRoot $ScanReportDirectory }
         $null = New-Item -ItemType Directory -Force -Path $reportRoot
         & $scannerPath -mode binary -scan package $launcher 2>&1 |
             Tee-Object -FilePath (Join-Path $reportRoot "store-launcher-$arch.txt")

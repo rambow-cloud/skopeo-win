@@ -2,7 +2,7 @@
 
 - **Store acceptance fix:** Store packages now declare a visible default application entry instead of the headless entry rejected in 1.0.6.0. The Start-menu entry opens a native usage window that waits for Enter; command aliases still invoke the CLI directly. Package verification rejects headless manifests and tests launcher input/exit behavior. `runFullTrust` remains subject to Microsoft's separate approval.
 
-- **Microsoft Store packaging:** stable main builds produce a separate x64/ARM64 MSIX bundle with `skopeo` and `skopeo-win` command aliases and the registered RambowCloud identity. Actions can also package an existing immutable release without rebuilding or replacing its executables. Store signing and publication require Microsoft certification; the workflow uploads submission artifacts, not a live Store listing.
+- **Microsoft Store packaging:** stable main builds produce a separate x64/ARM64 MSIX bundle with `skopeo` and `skopeo-win` command aliases and the registered RambowCloud identity. Actions can also package an existing immutable release without rebuilding or replacing its executables. Builds retain submission artifacts; a separately configured Store workflow can submit the update. Store signing and publication remain subject to Microsoft certification.
 
 - **Selective manifest-list signatures:** `copy` and `sync` support `--remove-list-signatures`, removing list signatures while preserving per-platform signatures. It cannot be combined with `--remove-signatures` and is intended for manifest-list copies.
 - **Platform subset copies:** `copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures` creates a manifest list containing only the chosen platform. The default still creates a sparse list. Signed lists and `--preserve-digests` continue to prevent prohibited manifest changes.
@@ -11,6 +11,11 @@
 Downloading a foreign layer does not guarantee a self-contained offline mirror: the current image library may retain external URLs in the manifest, and subsequent CLI pulls prefer those URLs even if the registry stores the layer. An unavailable external server can therefore still cause pulls to fail.
 
 ## Fixes and maintenance
+
+- **Reliable sync planning:** invalid YAML selections and registry tag-discovery failures now produce a failing exit code instead of a misleading zero-image success. All Docker and YAML tag-discovery paths honor `--command-timeout`.
+- **Windows directory mirror round trips:** tagged and digest-selected registry images use reversible Windows-safe directory names. Encoded tag case stays distinct on case-insensitive filesystems; existing ordinary directory layouts remain readable. Scoped restores should use the exported source-registry directory as their source root to preserve repository namespaces.
+- **Read-only dry runs:** sync plans no longer create destination directory trees or digest files. Existing destination directories are still rejected.
+- **Store delivery gates:** both input CLI architectures are scanned again before Store packaging, including historical-release repackaging. CI verifies that either CLI scanner failure stops packaging. A separate main-only Actions workflow can submit validated packages through the Microsoft Store API once Entra credentials are configured; it refuses existing pending submissions and preserves listing metadata.
 
 - **Key-output safety:** key generation now creates output files exclusively at the write boundary and refuses links or files introduced after its initial validation. Existing unrelated files remain unchanged. Use a trusted output directory; exploitation of the former race required local directory/link permissions and the invoker's target-file rights.
 - **Publication state checks:** the publisher binds a draft to its numeric release ID and rechecks its ownership, tag and asset digests after upload. If another actor has already published the same verified release, retries do not edit it again.

@@ -57,6 +57,25 @@ Path of the primary registry credentials file for the destination registry. Uses
 **--dry-run**
 
 Run the sync without actually copying data to the destination.
+Destination directories and digest files are not created in this mode.
+
+On Windows, registry-to-directory sync encodes reserved characters, uppercase
+tag characters, percent signs, and reserved device names using a `~skopeo~`
+prefix and percent escapes. This keeps tags such as `stable` and `Stable`
+distinct on case-insensitive filesystems. Directory-to-registry sync decodes
+these marked components; ordinary existing directory names remain unchanged.
+Normal Windows path and component length limits still apply.
+
+For a scoped export, restore from the directory representing the source
+registry and use `--scoped` to retain its repository namespaces. For example,
+an exported `team/image:stable` becomes `team/~skopeo~image%3astable` beneath
+that registry directory. The registry directory may itself be encoded if its
+address includes a port. Unscoped exports place image directories directly
+under the chosen destination.
+
+Invalid selection configuration and registry tag-discovery errors fail the
+command, including YAML configurations with otherwise valid selections.
+A valid filter matching no tags remains a successful empty selection.
 
 **--src**, **-s** _transport_ Transport for the source repository.
 

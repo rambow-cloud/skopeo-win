@@ -1,0 +1,105 @@
+name: Microsoft Store update
+
+on:
+  workflow_run:
+    workflows: [Windows binaries]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful main Windows binaries run containing the new Store bundle
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: microsoft-store-production
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.event != 'pull_request'))
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify Store API configuration
+        shell: pwsh
+        env:
+          AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          AZURE_AD_APPLICATION_CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
+          AZURE_AD_APPLICATION_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
+        run: |
+          foreach ($name in @('AZURE_AD_TENANT_ID', 'AZURE_AD_APPLICATION_CLIENT_ID', 'AZURE_AD_APPLICATION_SECRET')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Missing GitHub Actions secret: $name. No Store upload or certification submission was performed."
+            }
+          }
+      - name: Download verified main Store artifact
+        id: package
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          COMPLETED_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $runId = if ($env:INPUT_RUN_ID) { $env:INPUT_RUN_ID } else { $env:COMPLETED_RUN_ID }
+          if ($runId -notmatch '^[1-9]\d*$') { throw 'Invalid source run ID' }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$runId" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read source run' }
+          if ($run.path -cne '.github/workflows/windows.yml' -or $run.head_branch -cne 'main' -or
+              $run.head_repository.full_name -cne $env:GITHUB_REPOSITORY -or $run.conclusion -cne 'success' -or
+              $run.status -cne 'completed' -or $run.event -notin @('push', 'workflow_dispatch')) {
+            throw 'Only a successful trusted main Windows binaries run can update the Store'
+          }
+          $main = gh api "repos/$env:GITHUB_REPOSITORY/commits/main" --jq .sha
+          if ($LASTEXITCODE -ne 0 -or $main -cne $run.head_sha) { throw 'A newer main commit exists; use its completed build' }
+          $response = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$runId/artifacts?per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot list source artifacts' }
+          $artifacts = @($response.artifacts | Where-Object { -not $_.expired -and $_.name -cmatch '^microsoft-store-[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$' })
+          if ($artifacts.Count -ne 1) { throw 'Expected exactly one versioned Store artifact' }
+          $version = $artifacts[0].name.Substring('microsoft-store-'.Length)
+          $ref = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/v$version" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $ref.object.type -cne 'commit' -or $ref.object.sha -cne $run.head_sha) {
+            throw 'Store package version does not identify the source run commit'
+          }
+          gh run download $runId --repo $env:GITHUB_REPOSITORY --name $artifacts[0].name --dir store-input
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download Store artifact' }
+          $bundle = "store-input/skopeo-win-$version.0.msixbundle"
+          $verification = Get-Content -Raw store-input/verification.json | ConvertFrom-Json
+          $hash = (Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($verification.packageVersion -cne "$version.0" -or $verification.bundleSHA256 -cne $hash -or
+              $verification.manifestAndContentVerified -ne $true -or $verification.visibleApplicationEntryVerified -ne $true) {
+            throw 'Store verification report does not match the artifact'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "bundle=$bundle" >> $env:GITHUB_OUTPUT
+      - name: Submit package update for Microsoft certification
+        shell: pwsh
+        env:
+          AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          AZURE_AD_APPLICATION_CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
+          AZURE_AD_APPLICATION_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
+          STORE_VERSION: ${{ steps.package.outputs.version }}
+          STORE_BUNDLE: ${{ steps.package.outputs.bundle }}
+        run: ./hack/submit-store.ps1 -Bundle $env:STORE_BUNDLE -Version $env:STORE_VERSION
+      - name: Retain non-secret submission status
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: microsoft-store-submission-status
+          path: .cache/store-submission/submission.json
+          include-hidden-files: true
+          if-no-files-found: ignore

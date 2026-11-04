@@ -69,6 +69,12 @@ jobs:
         env:
           BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: ./hack/test-windows-integration.ps1 -ExpectedVersion $env:BUILD_VERSION
+      - name: Test Store CLI scan rejection
+        shell: pwsh
+        run: |
+          ./hack/test-store-scan-gate.ps1
+          ./hack/test-store-submission.ps1
+          ./hack/test-store-submission-flow.ps1
       - name: Upload executable integration reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -197,12 +203,12 @@ jobs:
           - Store signing occurs after certification. Installation, activated aliases and WACK remain manual checks.
           - No Partner Center upload or certification submission was performed by this workflow.
           "@ >> $env:GITHUB_STEP_SUMMARY
-      - name: Upload Store launcher vulnerability reports
+      - name: Upload Store CLI and launcher vulnerability reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: store-launcher-vulnerability-scan-reports
-          path: .cache/vulnerability-scan/store-launcher-*.txt
+          name: store-vulnerability-scan-reports
+          path: .cache/vulnerability-scan/store-*.txt
           include-hidden-files: true
           if-no-files-found: ignore
       - name: Upload Microsoft Store submission bundle
