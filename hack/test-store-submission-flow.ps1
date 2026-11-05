@@ -30,6 +30,7 @@ function Invoke-RestMethod {
         return @{ access_token = 'synthetic-access-token' }
     }
     if ($Headers.Authorization -cne 'Bearer synthetic-access-token') { throw 'Missing bearer authorization' }
+    if ($Headers.Accept -cne 'application/json') { throw 'Store JSON response header is missing' }
     switch ("$Method $Uri") {
         "Get $api" {
             if ($storeModel.scenario -eq 'api failure') { throw 'synthetic-sensitive-response-body' }
@@ -39,6 +40,14 @@ function Invoke-RestMethod {
         }
         "Get $api/submissions/123" { return @{applicationPackages=@(@{version='1.0.7.0'})} }
         "Post $api/submissions" {
+            if ($ContentType -cne 'application/json' -or $null -ne $Body) { throw 'Store draft creation must be an empty JSON request' }
+            if ($storeModel.scenario -eq 'create failure') {
+                $response = [Net.Http.HttpResponseMessage]::new([Net.HttpStatusCode]::BadRequest)
+                $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new('synthetic-sensitive-response-body', $response)
+                $failure = [Management.Automation.ErrorRecord]::new($exception, 'StoreBadRequest', 'InvalidOperation', $null)
+                $failure.ErrorDetails = [Management.Automation.ErrorDetails]::new('{"code":"InvalidRequest","message":"Use JSON; synthetic-client-secret; Bearer synthetic-access-token; https://synthetic.blob.core.windows.net/?sig=synthetic-sas"}')
+                throw $failure
+            }
             return @{
                 id='456';status='PendingCommit';fileUploadUrl='https://synthetic.blob.core.windows.net/upload?sig=synthetic-sas'
                 applicationPackages=@(@{version='1.0.7.0';fileName='old.msix';fileStatus='Uploaded'})
@@ -54,6 +63,7 @@ function Invoke-RestMethod {
             return @{}
         }
         "Post $api/submissions/456/commit" {
+            if ($ContentType -cne 'application/json' -or $null -ne $Body) { throw 'Store commit must be an empty JSON request' }
             if (-not $storeModel.uploaded) { throw 'Commit preceded successful upload' }
             return @{}
         }
@@ -77,7 +87,7 @@ function Invoke-WebRequest {
 }
 
 try {
-    foreach ($case in @('success','pending','upload failure','api failure')) {
+    foreach ($case in @('success','pending','upload failure','api failure','create failure')) {
         $storeModel.scenario = $case
         $storeModel.calls.Clear()
         $storeModel.uploaded = $false
@@ -92,6 +102,12 @@ try {
         } else {
             if (-not $caught -or $commits -ne 0 -or $caught -match 'synthetic-sensitive') { throw "Unsafe failure handling for $case" }
             if ($case -eq 'pending' -and @($storeModel.calls | Where-Object {$_ -eq "Post $api/submissions"}).Count -ne 0) { throw 'Existing draft was replaced' }
+            if ($case -eq 'create failure') {
+                $report = Get-Content -Raw (Join-Path $out 'submission.json') | ConvertFrom-Json
+                if ($storeModel.uploaded -or $report.submissionId -or $report.status -cne 'NotStarted' -or
+                    $report.failedOperation -cne 'Create Store submission' -or $report.httpStatus -ne 400 -or $report.diagnostic -notmatch 'InvalidRequest' -or
+                    $report.diagnostic -match 'synthetic|https?://|::|[\r\n]' -or $caught -match 'synthetic') { throw 'Draft creation failure was not safely retained' }
+            }
         }
         Write-Host "Verified offline Store transaction: $case."
     }

@@ -12,6 +12,8 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 
 ## Fixes and maintenance
 
+- **Store API diagnostics:** Store requests explicitly negotiate JSON, including empty draft-creation and commit requests. Failed requests retain the operation, HTTP status and structured API error fields after redacting credentials, bearer tokens and URLs; arbitrary response bodies remain hidden. Offline transaction checks cover these headers, diagnostic redaction and draft-creation rejection before upload.
+
 - **Third-party Store notices:** both MSIX architectures now include notices inventoried from their actual CLI/launcher dependencies and matching Go source tree, with versions, source attribution and file hashes. Package checks reject missing or changed notices and incorrect inventories. Historical binary/source mismatches stop packaging instead of attaching unrelated license files. Portable release assets remain unchanged.
 
 - **Reliable sync planning:** invalid YAML selections and registry tag-discovery failures now produce a failing exit code instead of a misleading zero-image success. All Docker and YAML tag-discovery paths honor `--command-timeout`.
