@@ -95,7 +95,7 @@ Bug fixes, security updates, and selected feature ports are implemented through 
 
 ## Automatic releases
 
-Successful `main` push builds and manual `main` runs publish independent releases starting at `v1.0.0`. Each new release increments the patch number. The version is allocated before compilation and embedded in the executables, so `--version` matches the release tag. PRs and local builds use development versions.
+Successful `main` push builds publish independent releases when production inputs have changed since the latest published release. Automation and documentation maintenance runs checks without publishing or updating the Store. Normal manual `main` runs explicitly request a release. Independent releases start at `v1.0.0` and increment the patch number. The version is allocated before compilation and embedded in the executables, so `--version` matches the release tag. PRs, maintenance-only main builds and local builds use development versions.
 
 Publication first creates a draft, verifies all four uploaded asset digests, and then makes it public. A release-job retry resumes missing draft uploads or verifies an already published release without modifying it. Published files and tags are never overwritten or moved. Historical `v1.23.0` is retained but excluded from the independent counter. See [release-policy.md](docs/release-policy.md) for details.
 
