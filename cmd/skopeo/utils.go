@@ -187,11 +187,51 @@ func imageFlags(global *globalOptions, shared *sharedImageOptions, deprecatedTLS
 	return fs, opts
 }
 
+// validatedFlagValue preserves pflag's type diagnostics and applies range checks
+// during parsing, before help dispatch or command handlers can have side effects.
+type validatedFlagValue struct {
+	pflag.Value
+	validate func() error
+}
+
+func (v *validatedFlagValue) Set(value string) error {
+	previous := v.Value.String()
+	if err := v.Value.Set(value); err != nil {
+		return err
+	}
+	if err := v.validate(); err != nil {
+		_ = v.Value.Set(previous)
+		return err
+	}
+	return nil
+}
+
+func validateFlag(flags *pflag.FlagSet, name string, validate func() error) {
+	flag := flags.Lookup(name)
+	flag.Value = &validatedFlagValue{Value: flag.Value, validate: validate}
+}
+
 func retryFlags() (pflag.FlagSet, *retry.Options) {
 	opts := retry.Options{}
 	fs := pflag.FlagSet{}
-	fs.IntVar(&opts.MaxRetry, "retry-times", 0, "the number of times to possibly retry")
-	fs.DurationVar(&opts.Delay, "retry-delay", 0*time.Second, "Fixed delay between retries. If not set, retry uses an exponential backoff delay.")
+	fs.IntVar(&opts.MaxRetry, "retry-times", 0, "the non-negative number of times to possibly retry")
+	validateFlag(&fs, "retry-times", func() error {
+		if opts.MaxRetry < 0 {
+			return errors.New("must not be negative")
+		}
+		return nil
+	})
+	fs.DurationVar(&opts.Delay, "retry-delay", 0*time.Second, "Fixed delay between retries (0 for automatic backoff, or at least 10ns).")
+	validateFlag(&fs, "retry-delay", func() error {
+		if opts.Delay < 0 {
+			return errors.New("must not be negative")
+		}
+		// The retry library's jitter requires delay/10 to be strictly positive.
+		if opts.Delay > 0 && opts.Delay < 10*time.Nanosecond {
+			return errors.New("must be 0 for automatic backoff or at least 10ns")
+		}
+		return nil
+	})
 	return fs, &opts
 }
 

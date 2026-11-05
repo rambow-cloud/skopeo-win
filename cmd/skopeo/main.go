@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -87,7 +88,13 @@ func createApp() (*cobra.Command, *globalOptions) {
 	rootCommand.PersistentFlags().StringVar(&opts.overrideArch, "override-arch", defaultImageArchitecture(), "target image `ARCH` (defaults to the native machine architecture)")
 	rootCommand.PersistentFlags().StringVar(&opts.overrideOS, "override-os", "linux", "target image `OS`")
 	rootCommand.PersistentFlags().StringVar(&opts.overrideVariant, "override-variant", "", "use `VARIANT` instead of the running architecture variant for choosing images")
-	rootCommand.PersistentFlags().DurationVar(&opts.commandTimeout, "command-timeout", 0, "timeout for the command execution (e.g. 30s, 10m)")
+	rootCommand.PersistentFlags().DurationVar(&opts.commandTimeout, "command-timeout", 0, "non-negative timeout for command execution, 0 disables it (e.g. 30s, 10m)")
+	validateFlag(rootCommand.PersistentFlags(), "command-timeout", func() error {
+		if opts.commandTimeout < 0 {
+			return errors.New("must not be negative")
+		}
+		return nil
+	})
 	rootCommand.PersistentFlags().StringVar(&opts.registriesConfPath, "registries-conf", "", "path to the registries.conf file")
 	if err := rootCommand.PersistentFlags().MarkHidden("registries-conf"); err != nil {
 		logrus.Fatal("unable to mark registries-conf flag as hidden")
