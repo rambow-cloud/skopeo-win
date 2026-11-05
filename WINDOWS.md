@@ -60,6 +60,11 @@ and exits successfully with status 0. Valid global flags without a command also
 display help. Unknown commands, invalid flags and missing required subcommand
 arguments remain errors.
 
+Invalid options and arguments report their error on stderr and exit with status 1.
+Command timeouts and retry counts must be non-negative. Retry delays must be 0
+(automatic backoff) or at least 10ns; invalid ranges fail before registry access or
+policy/output creation. A timeout of 0 continues to disable the command deadline.
+
 ## Image trust policy
 
 On a clean Windows profile, the first `copy` or non-dry-run `sync` that needs a
