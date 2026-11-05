@@ -28,13 +28,24 @@ $null = New-Item -ItemType Directory -Force -Path $OutputDirectory
 $reportPath = Join-Path $OutputDirectory 'submission.json'
 $report = [ordered]@{ productId = '9MT5QPKZDHGD'; version = "$Version.0"; bundleSHA256 = $hash; submissionId = $null; status = 'NotStarted' }
 function Save-Report { $report | ConvertTo-Json | Set-Content -LiteralPath $reportPath -Encoding utf8 }
+$script:storeAccessToken = ''
 function Invoke-SafeRequest([string] $Operation, [hashtable] $Parameters) {
     try { Invoke-RestMethod @Parameters -MaximumRedirection 0 -ErrorAction Stop }
     catch {
-        # Never print response bodies, request parameters, tokens, or upload SAS URLs.
+        # Never print raw response bodies, request parameters, tokens, or upload SAS URLs.
         $responseProperty = $_.Exception.PSObject.Properties['Response']
         $code = if ($responseProperty -and $responseProperty.Value) { [int]$responseProperty.Value.StatusCode } else { 'transport error' }
-        throw "$Operation failed ($code). Review Partner Center or Entra access; sensitive response details are omitted."
+        $errorBody = if ($_.ErrorDetails) { $_.ErrorDetails.Message } else { '' }
+        $diagnostic = Get-StoreErrorDiagnostic -Body $errorBody -SensitiveValues @(
+            $env:AZURE_AD_TENANT_ID, $env:AZURE_AD_APPLICATION_CLIENT_ID,
+            $env:AZURE_AD_APPLICATION_SECRET, $script:storeAccessToken
+        )
+        $report['failedOperation'] = $Operation
+        $report['httpStatus'] = $code
+        $report['diagnostic'] = $diagnostic
+        Save-Report
+        if ($diagnostic) { throw "$Operation failed ($code). API diagnostic: $diagnostic" }
+        throw "$Operation failed ($code). No safe structured API diagnostic was available."
     }
 }
 Save-Report
@@ -44,8 +55,9 @@ $auth = Invoke-SafeRequest 'Entra authentication' @{
     Body = @{ grant_type = 'client_credentials'; client_id = $env:AZURE_AD_APPLICATION_CLIENT_ID; client_secret = $env:AZURE_AD_APPLICATION_SECRET; resource = 'https://manage.devcenter.microsoft.com' }
 }
 if (-not $auth.access_token) { throw 'Entra returned no access token' }
+$script:storeAccessToken = [string]$auth.access_token
 if ($env:GITHUB_ACTIONS -eq 'true') { Write-Output "::add-mask::$($auth.access_token)" }
-$headers = @{ Authorization = "Bearer $($auth.access_token)" }
+$headers = @{ Authorization = "Bearer $($auth.access_token)"; Accept = 'application/json' }
 $baseUri = 'https://manage.devcenter.microsoft.com/v1.0/my/applications/9MT5QPKZDHGD'
 $application = Invoke-SafeRequest 'Get Store application' @{ Uri = $baseUri; Headers = $headers; TimeoutSec = 60 }
 $applicationData = $application | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
@@ -58,7 +70,7 @@ $publishedData = $published | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHa
 foreach ($package in $publishedData['applicationPackages']) {
     if ([version]$package['version'] -ge [version]"$Version.0") { throw 'This version is already published or has been superseded' }
 }
-$submission = Invoke-SafeRequest 'Create Store submission' @{ Uri = "$baseUri/submissions"; Method = 'Post'; Headers = $headers; TimeoutSec = 60 }
+$submission = Invoke-SafeRequest 'Create Store submission' @{ Uri = "$baseUri/submissions"; Method = 'Post'; Headers = $headers; ContentType = 'application/json'; TimeoutSec = 60 }
 $data = $submission | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
 $submissionId = $data['id']
 if ($submissionId -notmatch '^\d+$') { throw 'Store returned an invalid submission ID' }
@@ -86,7 +98,7 @@ finally { $zip.Dispose() }
 try {
     $null = Invoke-WebRequest -Uri $uploadUri -Method Put -InFile $archive -Headers @{'x-ms-blob-type' = 'BlockBlob'} -ContentType 'application/zip' -MaximumRedirection 0 -TimeoutSec 600 -ErrorAction Stop
 } catch { throw 'Store package upload failed. The existing draft is retained; upload credentials are omitted.' }
-$null = Invoke-SafeRequest 'Commit Store submission' @{ Uri = "$baseUri/submissions/$submissionId/commit"; Method = 'Post'; Headers = $headers; TimeoutSec = 60 }
+$null = Invoke-SafeRequest 'Commit Store submission' @{ Uri = "$baseUri/submissions/$submissionId/commit"; Method = 'Post'; Headers = $headers; ContentType = 'application/json'; TimeoutSec = 60 }
 $report.status = 'CommitStarted'
 Save-Report
 $accepted = $false

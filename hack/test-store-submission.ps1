@@ -2,6 +2,23 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'store-submission.psm1') -Force
+$credential = 'synthetic secret+/value'
+$errorBody = @{
+    error = @{
+        code = 'InvalidRequest'
+        message = "Use JSON. $credential $([uri]::EscapeDataString($credential)) $([Net.WebUtility]::UrlEncode($credential)) Bearer synthetic-token https://synthetic.blob.core.windows.net/upload?sig=synthetic-sas`n::warning::injected"
+        details = @(@{code='InvalidHeader';message='Content-Type is required'})
+        ignored = 'synthetic-ignored-field'
+    }
+} | ConvertTo-Json -Depth 5
+$diagnostic = Get-StoreErrorDiagnostic $errorBody @($credential)
+if ($diagnostic -notmatch 'InvalidRequest' -or $diagnostic -notmatch 'Content-Type is required' -or
+    $diagnostic -match 'synthetic|https?://|::|[\r\n]') { throw 'Structured API error diagnostics were unsafe or unhelpful' }
+foreach ($invalid in @('unstructured synthetic-secret', '<html>synthetic-secret</html>', '[]', ('x' * 65537))) {
+    if (Get-StoreErrorDiagnostic $invalid) { throw 'Unstructured or oversized response was disclosed' }
+}
+$authDiagnostic = Get-StoreErrorDiagnostic '{"error":"invalid_client","error_description":"AADSTS7000215: Invalid client secret provided."}'
+if ($authDiagnostic -notmatch 'AADSTS7000215') { throw 'Entra diagnostic was lost' }
 $app = @{ id = '9MT5QPKZDHGD'; packageIdentityName = 'RambowCloud.skopeo-win'; lastPublishedApplicationSubmission = @{ id = '123' } }
 Assert-StoreApplication $app
 foreach ($change in @(@{id='OTHER'}, @{packageIdentityName='OTHER'}, @{pendingApplicationSubmission=@{id='456'}}, @{lastPublishedApplicationSubmission=$null})) {
