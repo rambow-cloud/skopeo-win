@@ -17,6 +17,8 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 
 ## Fixes and maintenance
 
+- **Store publication tracking:** Actions records a durable issue for each Store submission and checks publication hourly and after submission workflows. The issue closes only when Microsoft reports `Published` and the uploaded package version matches. Processing, certification, release-ready states, failures and mismatched versions keep it open; unchanged checks do not generate repeated edits or comments. Existing pending delivery #22 and the v1.0.14 submission are adopted without resubmitting packages.
+
 - **Maintainer-controlled tagged releases:** main merges, PRs and normal manual builds run build, integration and vulnerability checks without publishing or submitting a Store update. A maintainer-created stable tag selects the exact release version after features accumulate on main. Lightweight and annotated tags are supported, with main-history, version-order and immutable-publication checks. Store delivery verifies the published tag and source workflow even if main has advanced.
 
 - **Independent repository automation:** removed inherited upstream Cirrus-monitor and issue-lock workflow callers whose old Podman references fail GitHub's workflow validation. Windows build/release, Store submission and the standalone stale-issue workflow are retained. Historical failed runs remain available as evidence.
