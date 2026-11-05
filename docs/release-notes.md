@@ -1,5 +1,8 @@
 ## Features
 
+- **Windows first-use policy:** a clean Windows profile automatically receives an embedded, default-reject `policy.json` permitting Docker Official Images, Microsoft Container Registry, Kubernetes, Prometheus on Quay and Flux on GHCR. If saving is unavailable, the identical policy runs in memory. Existing policies and explicit selections remain authoritative; invalid configured policies are not bypassed. Namespace acceptance does not verify publisher signatures, and TLS checks stay enabled.
+- **Linux image defaults:** image selection now defaults to Linux and the native machine architecture, including ARM64 detection under Windows x64 emulation. Explicit OS/architecture flags and all-platform copies remain supported. Examples include exporting a Docker-loadable tar archive without Docker.
+
 - **Store acceptance fix:** Store packages now declare a visible default application entry instead of the headless entry rejected in 1.0.6.0. The Start-menu entry opens a native usage window that waits for Enter; command aliases still invoke the CLI directly. Package verification rejects headless manifests and tests launcher input/exit behavior. `runFullTrust` remains subject to Microsoft's separate approval.
 
 - **Microsoft Store packaging:** stable main builds produce a separate x64/ARM64 MSIX bundle with `skopeo` and `skopeo-win` command aliases and the registered RambowCloud identity. Actions can also package an existing immutable release without rebuilding or replacing its executables. Builds retain submission artifacts; a separately configured Store workflow can submit the update. Store signing and publication remain subject to Microsoft certification.
@@ -32,6 +35,8 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 - Automated releases now include this reviewed feature and verification summary alongside their source and CI links. Independent patch versions continue to increase without replacing published binaries or moving tags.
 
 ## Verification
+
+- New executable integration scenarios exercise clean-profile archive exports, default and overridden platform selection, all-platform OCI copies, namespace boundaries, signature/TLS rejection, existing and explicit policy precedence, embedded fallback, read-only commands, concurrent bootstrap and Windows directory-junction containment. Tests use isolated local registries rather than live public services; ARM64 PE verification and cross-builds do not imply ARM64 runtime testing.
 
 - Release publication is gated on command/release tests, English-only documentation, source and both binary vulnerability scans, and executable integration tests on Windows amd64.
 - Integration tests start the built executable as separate processes against a local OCI Registry implementation and local layer server. They cover registry push/pull, inspect/list-tags, platform selection, signatures, digest conflicts, sync, and foreign-layer defaults/opt-in downloads.

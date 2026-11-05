@@ -636,7 +636,7 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 	}
 	opts.deprecatedTLSVerify.warnIfUsed([]string{"--src-tls-verify", "--dest-tls-verify"})
 
-	policyContext, err := opts.global.getPolicyContext()
+	policyContext, err := opts.global.getPolicyContextForOperation(!opts.dryRun)
 	if err != nil {
 		return fmt.Errorf("Error loading trust policy: %w", err)
 	}

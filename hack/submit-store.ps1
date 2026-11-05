@@ -83,7 +83,7 @@ if ($env:GITHUB_ACTIONS -eq 'true' -and $uploadUrl) { Write-Output "::add-mask::
 try { $uploadUri = [uri]$uploadUrl } catch { throw 'Store returned an invalid upload destination' }
 if ($uploadUri.Scheme -cne 'https' -or -not $uploadUri.DnsSafeHost.EndsWith('.blob.core.windows.net') -or
     $uploadUri.UserInfo -or $uploadUri.Port -ne 443) { throw 'Store returned an unexpected upload destination' }
-$notes = "Version $Version fixes synchronization error reporting and tag-list deadlines, supports reversible Windows directory mirrors, prevents dry-run writes, and rescans Store package inputs."
+$notes = "Version $Version adds scoped public-image trust defaults and Linux/native-architecture image selection on Windows. A missing policy is generated automatically or supplied by the embedded template; configured policies, signature requirements and TLS checks remain in effect."
 $updated = New-StorePackageUpdate $data "$Version.0" $fileName $notes
 $null = Invoke-SafeRequest 'Update Store package metadata' @{
     Uri = "$baseUri/submissions/$submissionId"; Method = 'Put'; Headers = $headers

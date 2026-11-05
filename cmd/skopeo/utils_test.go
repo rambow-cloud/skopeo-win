@@ -76,6 +76,8 @@ func TestImageOptionsNewSystemContext(t *testing.T) {
 	res, err := opts.newSystemContext()
 	require.NoError(t, err)
 	assert.Equal(t, &types.SystemContext{
+		ArchitectureChoice:      defaultImageArchitecture(),
+		OSChoice:                "linux",
 		DockerRegistryUserAgent: defaultUserAgent,
 	}, res)
 
@@ -152,6 +154,8 @@ func TestImageDestOptionsNewSystemContext(t *testing.T) {
 	res, err := opts.newSystemContext()
 	require.NoError(t, err)
 	assert.Equal(t, &types.SystemContext{
+		ArchitectureChoice:      defaultImageArchitecture(),
+		OSChoice:                "linux",
 		DockerRegistryUserAgent: defaultUserAgent,
 	}, res)
 
@@ -166,6 +170,8 @@ func TestImageDestOptionsNewSystemContext(t *testing.T) {
 	res, err = opts.newSystemContext()
 	require.NoError(t, err)
 	assert.Equal(t, &types.SystemContext{
+		ArchitectureChoice:      defaultImageArchitecture(),
+		OSChoice:                "linux",
 		AuthFilePath:            authFile,
 		DockerRegistryUserAgent: defaultUserAgent,
 	}, res)
@@ -259,6 +265,8 @@ func TestImageOptionsUsernamePassword(t *testing.T) {
 		} else {
 			require.NoError(t, err)
 			assert.Equal(t, &types.SystemContext{
+				ArchitectureChoice:      defaultImageArchitecture(),
+				OSChoice:                "linux",
 				DockerRegistryUserAgent: defaultUserAgent,
 				DockerAuthConfig:        command.expectedAuthConfig,
 			}, res)
@@ -580,6 +588,8 @@ func TestImageOptionsAuthfileOverride(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, &types.SystemContext{
+			ArchitectureChoice:      defaultImageArchitecture(),
+			OSChoice:                "linux",
 			AuthFilePath:            testCase.expectedAuthfilePath,
 			DockerRegistryUserAgent: defaultUserAgent,
 		}, res)
