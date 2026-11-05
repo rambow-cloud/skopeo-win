@@ -4,11 +4,10 @@ on:
   workflow_run:
     workflows: [Windows binaries]
     types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       run_id:
-        description: Successful main Windows binaries run containing the new Store bundle
+        description: Successful release Windows binaries run containing the Store bundle
         required: true
         type: string
 
@@ -64,7 +63,7 @@ jobs:
               throw "Missing GitHub Actions secret: $name. No Store upload or certification submission was performed."
             }
           }
-      - name: Download verified main Store artifact
+      - name: Download verified release Store artifact
         id: package
         shell: pwsh
         env:
@@ -73,26 +72,24 @@ jobs:
           COMPLETED_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           $ErrorActionPreference = 'Stop'
+          Import-Module ./.github/scripts/release-gate.psm1 -Force
           $runId = if ($env:INPUT_RUN_ID) { $env:INPUT_RUN_ID } else { $env:COMPLETED_RUN_ID }
           if ($runId -notmatch '^[1-9]\d*$') { throw 'Invalid source run ID' }
           $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$runId" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Cannot read source run' }
-          if ($run.path -cne '.github/workflows/windows.yml' -or $run.head_branch -cne 'main' -or
-              $run.head_repository.full_name -cne $env:GITHUB_REPOSITORY -or $run.conclusion -cne 'success' -or
-              $run.status -cne 'completed' -or $run.event -notin @('push', 'workflow_dispatch')) {
-            throw 'Only a successful trusted main Windows binaries run can update the Store'
-          }
-          $main = gh api "repos/$env:GITHUB_REPOSITORY/commits/main" --jq .sha
-          if ($LASTEXITCODE -ne 0 -or $main -cne $run.head_sha) { throw 'A newer main commit exists; use its completed build' }
+          Assert-StoreSourceRun $run $env:GITHUB_REPOSITORY
           $response = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$runId/artifacts?per_page=100" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Cannot list source artifacts' }
           $artifacts = @($response.artifacts | Where-Object { -not $_.expired -and $_.name -cmatch '^microsoft-store-[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$' })
           if ($artifacts.Count -ne 1) { throw 'Expected exactly one versioned Store artifact' }
           $version = $artifacts[0].name.Substring('microsoft-store-'.Length)
-          $ref = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/v$version" | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $ref.object.type -cne 'commit' -or $ref.object.sha -cne $run.head_sha) {
-            throw 'Store package version does not identify the source run commit'
-          }
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/v$version" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the published source release' }
+          $commit = gh api "repos/$env:GITHUB_REPOSITORY/commits/v$version" --jq .sha
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the release tag commit' }
+          $mergeBase = gh api "repos/$env:GITHUB_REPOSITORY/compare/$($run.head_sha)...main" --jq .merge_base_commit.sha
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot verify main history' }
+          Assert-StoreSourceRelease $run $version $release $commit $mergeBase
           gh run download $runId --repo $env:GITHUB_REPOSITORY --name $artifacts[0].name --dir store-input
           if ($LASTEXITCODE -ne 0) { throw 'Cannot download Store artifact' }
           $bundle = "store-input/skopeo-win-$version.0.msixbundle"

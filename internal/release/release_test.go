@@ -33,7 +33,7 @@ type releaseStore struct {
 }
 
 func newStore() *releaseStore {
-	return &releaseStore{refs: map[string]string{}, releases: map[int64]*Release{}}
+	return &releaseStore{refs: map[string]string{"v1.0.0": testCommit}, releases: map[int64]*Release{}}
 }
 
 func apiForm(args []string) (string, string, map[string]string, error) {
@@ -73,6 +73,9 @@ func (s *releaseStore) run(args ...string) ([]byte, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("empty command")
 	}
+	if len(args) == 4 && args[0] == "api" && args[1] == "repos/owner/repo/compare/"+testCommit+"...main" && args[2] == "--jq" && args[3] == ".merge_base_commit.sha" {
+		return []byte(testCommit), nil
+	}
 	if args[0] == "api" && len(args) == 4 && args[2] == "--paginate" && args[3] == "--slurp" {
 		switch args[1] {
 		case "repos/owner/repo/git/matching-refs/tags/v":
@@ -102,13 +105,6 @@ func (s *releaseStore) run(args ...string) ([]byte, error) {
 		}
 		s.mutations = append(s.mutations, method+" "+path)
 		switch {
-		case method == "POST" && path == "repos/owner/repo/git/refs":
-			tag := strings.TrimPrefix(fields["ref"], "refs/tags/")
-			if tag == "" || len(fields) != 2 || fields["sha"] == "" || s.refs[tag] != "" {
-				return nil, fmt.Errorf("ref already exists or invalid creation")
-			}
-			s.refs[tag] = fields["sha"]
-			return []byte(`{}`), nil
 		case method == "POST" && path == "repos/owner/repo/releases":
 			tag := fields["tag_name"]
 			if len(fields) != 5 || fields["draft"] != "true" || s.refs[tag] != fields["target_commitish"] || fields["name"] != "skopeo-win "+tag {
@@ -357,39 +353,89 @@ func TestMalformedDraftResponseStopsBeforeUpload(t *testing.T) {
 	}
 }
 
-func TestVersionAllocationReservationsAndRetry(t *testing.T) {
-	refs := []Ref{testRef(LegacyTag, testCommit), testRef("v1.0.9", testCommit), testRef("v1.0.10", testCommit)}
-	got, err := Next(refs, []Release{{Tag: "v1.0.11", Draft: true}}, "123", testCommit)
-	if err != nil || got != "1.0.12" {
-		t.Fatalf("reservation not respected: %s %v", got, err)
-	}
-	got, err = Next([]Ref{testRef(LegacyTag, testCommit)}, nil, "123", testCommit)
-	if err != nil || got != "1.0.0" {
-		t.Fatalf("legacy counter reused: %s %v", got, err)
-	}
-	got, err = Next(refs, []Release{{Tag: "v1.0.10", Body: marker("123")}}, "123", testCommit)
-	if err != nil || got != "1.0.10" {
-		t.Fatalf("retry counter changed: %s %v", got, err)
-	}
-	if _, err := Next([]Ref{testRef("v1.0.10", "wrong")}, []Release{{Tag: "v1.0.10", Body: marker("123")}}, "123", testCommit); err == nil {
-		t.Fatal("retry accepted a moved tag")
-	}
-	if _, err := Next([]Ref{testRef("v1.0.18446744073709551615", testCommit)}, nil, "123", testCommit); err == nil {
-		t.Fatal("overflow accepted")
+func TestManualTagPlanningAndPublication(t *testing.T) {
+	for _, state := range []string{"new lightweight tag", "annotated tag", "same-run retry", "missing tag", "moved tag", "outside main", "foreign release", "newer orphan", "newer draft"} {
+		t.Run(state, func(t *testing.T) {
+			s := newStore()
+			s.refs[LegacyTag] = testCommit
+			s.refs["v1.0.15"] = testCommit
+			m := manager(s)
+			switch state {
+			case "annotated tag":
+				m.Run = func(args ...string) ([]byte, error) {
+					if len(args) == 4 && args[1] == "repos/owner/repo/commits/v1.0.15" {
+						return []byte(testCommit), nil
+					}
+					data, err := s.run(args...)
+					if len(args) == 4 && strings.HasSuffix(args[1], "/git/matching-refs/tags/v") {
+						var pages [][]Ref
+						if err := json.Unmarshal(data, &pages); err != nil {
+							return nil, err
+						}
+						for i := range pages[0] {
+							if pages[0][i].Ref == "refs/tags/v1.0.15" {
+								pages[0][i].Object.Type = "tag"
+								pages[0][i].Object.SHA = strings.Repeat("2", 40)
+							}
+						}
+						return json.Marshal(pages)
+					}
+					return data, err
+				}
+			case "same-run retry":
+				s.releases[100] = &Release{ID: 100, Tag: "v1.0.15", Draft: true, Body: marker("123")}
+			case "missing tag":
+				delete(s.refs, "v1.0.15")
+			case "moved tag":
+				s.refs["v1.0.15"] = "wrong"
+			case "outside main":
+				m.Run = func(args ...string) ([]byte, error) {
+					if len(args) == 4 && strings.Contains(args[1], "/compare/") {
+						return []byte(strings.Repeat("2", 40)), nil
+					}
+					return s.run(args...)
+				}
+			case "foreign release":
+				s.releases[100] = &Release{ID: 100, Tag: "v1.0.15", Body: marker("999")}
+			case "newer orphan":
+				s.refs["v1.0.16"] = testCommit
+			case "newer draft":
+				s.releases[100] = &Release{ID: 100, Tag: "v1.0.16", Draft: true}
+			}
+			got, err := m.PlanTag("v1.0.15")
+			good := state == "new lightweight tag" || state == "annotated tag" || state == "same-run retry"
+			if good && (err != nil || got != "1.0.15") || !good && err == nil {
+				t.Fatalf("unexpected plan %q: %v", got, err)
+			}
+			if len(s.mutations) != 0 {
+				t.Fatal("planning changed remote state")
+			}
+			dir, _ := releaseFixture(t)
+			err = m.Publish("1.0.15", dir)
+			if good && err != nil || !good && err == nil {
+				t.Fatalf("unexpected publication: %v", err)
+			}
+			if !good && len(s.mutations) != 0 {
+				t.Fatal("rejected release changed remote state")
+			}
+			for _, mutation := range s.mutations {
+				if strings.Contains(mutation, "git/refs") {
+					t.Fatal("publisher created or moved a tag")
+				}
+			}
+		})
 	}
 }
 
-func FuzzNextDoesNotReuseReservedVersion(f *testing.F) {
-	f.Add(uint16(1), uint16(0), uint32(0))
-	f.Add(uint16(9), uint16(4), uint32(9999))
-	f.Fuzz(func(t *testing.T, major, minor uint16, patch uint32) {
-		ma, mi := major%10, minor%10
-		base := fmt.Sprintf("v%d.%d.%d", ma, mi, patch)
-		draft := fmt.Sprintf("v%d.%d.%d", ma, mi, uint64(patch)+1)
-		want := fmt.Sprintf("%d.%d.%d", ma, mi, uint64(patch)+2)
-		got, err := Next([]Ref{testRef(base, testCommit)}, []Release{{Tag: draft, Draft: true}}, "123", testCommit)
-		if err != nil || got != want {
-			t.Fatalf("reserved version reused: %s %v; want %s", got, err, want)
+func TestManualTagSyntaxAndVersionOrder(t *testing.T) {
+	for _, tag := range []string{"", "1.0.15", "v01.0.15", "v0.1.0", "v1.0.15-rc.1", LegacyTag, "v65536.0.0", "v1.65536.0", "v1.0.65536", "v1.0.18446744073709551616"} {
+		if err := validateTagState(tag, "123", nil, nil); err == nil {
+			t.Fatalf("invalid tag accepted: %s", tag)
 		}
-	})
+	}
+	for _, tag := range []string{"v1.0.15", "v1.1.0", "v2.0.0"} {
+		if err := validateTagState(tag, "123", []Ref{testRef("v1.0.14", testCommit), testRef(LegacyTag, testCommit)}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

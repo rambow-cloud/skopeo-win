@@ -1,4 +1,4 @@
-// Package release implements independent version allocation and immutable publication.
+// Package release validates manually selected release tags and publishes immutable assets.
 package release
 
 import (
@@ -57,23 +57,42 @@ func parse(tag string) ([3]uint64, bool) {
 	return v, true
 }
 
-// Next excludes the historical upstream-aligned tag and reserves draft/orphan tags.
-// A release already associated with this workflow run is reused for safe retries.
-func Next(refs []Ref, releases []Release, runID, commit string) (string, error) {
-	for _, r := range releases {
-		if !strings.Contains(r.Body, marker(runID)) {
+func (m Manager) checkTag(refs []Ref, tag string) error {
+	for _, ref := range refs {
+		if ref.Ref != "refs/tags/"+tag {
 			continue
 		}
-		if _, ok := parse(r.Tag); !ok || r.Tag == LegacyTag {
-			return "", fmt.Errorf("invalid retry release tag %q", r.Tag)
+		commit := ref.Object.SHA
+		if ref.Object.Type == "tag" {
+			// The commits endpoint peels annotated tags to their source commit.
+			data, err := m.Run("api", "repos/"+m.Repo+"/commits/"+tag, "--jq", ".sha")
+			if err != nil {
+				return err
+			}
+			commit = strings.TrimSpace(string(data))
+		} else if ref.Object.Type != "commit" {
+			return fmt.Errorf("release tag must identify a commit")
 		}
-		if err := CheckTag(refs, r.Tag, commit, true); err != nil {
-			return "", err
+		if commit != m.Commit {
+			return fmt.Errorf("refusing to move existing tag %s", tag)
 		}
-		return strings.TrimPrefix(r.Tag, "v"), nil
+		return nil
 	}
-	var highest [3]uint64
-	found := false
+	return fmt.Errorf("release tag %s is missing", tag)
+}
+
+func validateTagState(tag, runID string, refs []Ref, releases []Release) error {
+	v, ok := parse(tag)
+	if !ok || tag == LegacyTag || v[0] == 0 || v[0] > 65535 || v[1] > 65535 || v[2] > 65535 {
+		return fmt.Errorf("invalid independent Store-compatible release tag %q", tag)
+	}
+	for _, r := range releases {
+		if r.Tag == tag && !strings.Contains(r.Body, marker(runID)) {
+			return fmt.Errorf("release %s belongs to a different run", tag)
+		}
+	}
+	// Ignore the selected pre-existing tag and the reserved legacy release.
+	// Other tags, drafts and releases reserve their version; never publish backwards.
 	tags := make([]string, 0, len(refs)+len(releases))
 	for _, ref := range refs {
 		tags = append(tags, strings.TrimPrefix(ref.Ref, "refs/tags/"))
@@ -81,43 +100,48 @@ func Next(refs []Ref, releases []Release, runID, commit string) (string, error) 
 	for _, r := range releases {
 		tags = append(tags, r.Tag)
 	}
-	for _, tag := range tags {
-		v, ok := parse(tag)
-		if !ok || tag == LegacyTag {
+	for _, other := range tags {
+		if other == tag || other == LegacyTag {
 			continue
 		}
-		if !found || v[0] > highest[0] || v[0] == highest[0] && (v[1] > highest[1] || v[1] == highest[1] && v[2] > highest[2]) {
-			highest, found = v, true
+		previous, valid := parse(other)
+		if valid && (previous[0] > v[0] || previous[0] == v[0] && (previous[1] > v[1] || previous[1] == v[1] && previous[2] > v[2])) {
+			return fmt.Errorf("release tag %s is older than reserved version %s", tag, other)
 		}
-	}
-	if !found {
-		return "1.0.0", nil
-	}
-	if highest[2] == ^uint64(0) {
-		return "", fmt.Errorf("release patch version overflow")
-	}
-	highest[2]++
-	tag := fmt.Sprintf("v%d.%d.%d", highest[0], highest[1], highest[2])
-	if tag == LegacyTag {
-		tag = "v1.23.1"
-	}
-	return strings.TrimPrefix(tag, "v"), nil
-}
-
-func CheckTag(refs []Ref, tag, commit string, required bool) error {
-	for _, ref := range refs {
-		if ref.Ref != "refs/tags/"+tag {
-			continue
-		}
-		if ref.Object.Type != "commit" || ref.Object.SHA != commit {
-			return fmt.Errorf("refusing to move existing tag %s", tag)
-		}
-		return nil
-	}
-	if required {
-		return fmt.Errorf("release tag %s is missing", tag)
 	}
 	return nil
+}
+
+func (m Manager) checkMainHistory() error {
+	data, err := m.Run("api", "repos/"+m.Repo+"/compare/"+m.Commit+"...main", "--jq", ".merge_base_commit.sha")
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(string(data)) != m.Commit {
+		return fmt.Errorf("release source must belong to main history")
+	}
+	return nil
+}
+
+// PlanTag uses an existing maintainer-created tag; it never allocates a version.
+func (m Manager) PlanTag(tag string) (string, error) {
+	if err := validateTagState(tag, m.RunID, nil, nil); err != nil {
+		return "", err
+	}
+	refs, releases, err := m.State()
+	if err != nil {
+		return "", err
+	}
+	if err := validateTagState(tag, m.RunID, refs, releases); err != nil {
+		return "", err
+	}
+	if err := m.checkTag(refs, tag); err != nil {
+		return "", err
+	}
+	if err := m.checkMainHistory(); err != nil {
+		return "", err
+	}
+	return strings.TrimPrefix(tag, "v"), nil
 }
 
 type Runner func(args ...string) ([]byte, error)
@@ -241,7 +265,13 @@ func (m Manager) Publish(version, dir string) error {
 	if err != nil {
 		return err
 	}
-	if err := CheckTag(refs, tag, m.Commit, false); err != nil {
+	if err := validateTagState(tag, m.RunID, refs, releases); err != nil {
+		return err
+	}
+	if err := m.checkTag(refs, tag); err != nil {
+		return err
+	}
+	if err := m.checkMainHistory(); err != nil {
 		return err
 	}
 	var current *Release
@@ -258,9 +288,6 @@ func (m Manager) Publish(version, dir string) error {
 		if !strings.Contains(current.Body, marker(m.RunID)) {
 			return fmt.Errorf("release %s belongs to a different run", tag)
 		}
-		if err := CheckTag(refs, tag, m.Commit, true); err != nil {
-			return err
-		}
 		if err := ValidateAssets(current.Assets, expected, !current.Draft); err != nil {
 			return err
 		}
@@ -268,18 +295,6 @@ func (m Manager) Publish(version, dir string) error {
 			return nil
 		} // Published releases are immutable, including on reruns.
 	} else {
-		hasTag := false
-		for _, ref := range refs {
-			if ref.Ref == "refs/tags/"+tag {
-				hasTag = true
-			}
-		}
-		if !hasTag {
-			// Reserve a lightweight tag atomically; never PATCH or force an existing ref.
-			if _, err := m.Run("api", "--method", "POST", "repos/"+m.Repo+"/git/refs", "-f", "ref=refs/tags/"+tag, "-f", "sha="+m.Commit); err != nil {
-				return err
-			}
-		}
 		created, createErr := m.Run("api", "--method", "POST", "repos/"+m.Repo+"/releases", "-f", "tag_name="+tag, "-f", "target_commitish="+m.Commit, "-f", "name=skopeo-win "+tag, "-f", "body="+notes, "-F", "draft=true")
 		err = createErr
 		if err != nil {
@@ -311,7 +326,7 @@ func (m Manager) Publish(version, dir string) error {
 	if err != nil {
 		return err
 	}
-	if err := CheckTag(refs, tag, m.Commit, true); err != nil {
+	if err := m.checkTag(refs, tag); err != nil {
 		return err
 	}
 	for _, r := range releases {

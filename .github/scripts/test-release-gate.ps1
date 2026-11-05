@@ -3,23 +3,23 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'release-gate.psm1') -Force
 foreach ($case in @(
-    @{paths=@('.github/workflows/check_cirrus_cron.yml','docs/release-notes.md');want=$false},
-    @{paths=@('.github/scripts/release-gate.psm1','README.md','WINDOWS.md');want=$false},
-    @{paths=@();want=$false},
-    @{paths=@('cmd/skopeo/copy.go','docs/release-notes.md');want=$true},
-    @{paths=@('go.mod');want=$true},
-    @{paths=@('vendor/example/file.go');want=$true},
-    @{paths=@('build-store.ps1');want=$true},
-    @{paths=@('packaging/store/Assets/Logo.png');want=$true},
-    @{paths=@('LICENSE');want=$true},
-    @{paths=@('.github/../cmd/skopeo/main.go');want=$true},
-    @{paths=@('"docs/quoted-path"');want=$true}
+    @{event='push';ref='refs/heads/main';tag=''},
+    @{event='pull_request';ref='refs/pull/40/merge';tag=''},
+    @{event='workflow_dispatch';ref='refs/heads/main';tag=''},
+    @{event='workflow_dispatch';ref='refs/tags/v1.0.15';tag=''},
+    @{event='push';ref='refs/tags/v1.0.15';tag='v1.0.15'},
+    @{event='push';ref='refs/tags/v2.0.0';tag='v2.0.0'}
 )) {
-    if ((Test-ReleaseNeeded $case.paths) -ne $case.want) { throw 'Release path classification failed' }
+    if ((Get-ReleaseTag $case.event $case.ref) -cne $case.tag) { throw 'Tag-only release gating failed' }
 }
-if (Test-AutomaticStoreSubmission 'workflow_run' @(@{name='release';conclusion='skipped'})) { throw 'Maintenance triggered Store submission' }
-if (-not (Test-AutomaticStoreSubmission 'workflow_run' @(@{name='release';conclusion='success'}))) { throw 'Published source was skipped' }
-if (-not (Test-AutomaticStoreSubmission 'workflow_dispatch' @())) { throw 'Explicit Store dispatch was skipped' }
+foreach ($tag in @('v01.0.15','v0.1.0','v1.0.15-rc.1','v1.23.0','v65536.0.0','v1.0.65536','v1.0.15/extra')) {
+    $rejected = $false
+    try { $null = Get-ReleaseTag 'push' "refs/tags/$tag" } catch { $rejected = $true }
+    if (-not $rejected) { throw "Invalid release tag accepted: $tag" }
+}
+if (Test-AutomaticStoreSubmission 'workflow_run' @(@{name='release';conclusion='skipped'})) { throw 'Build-only run triggered Store submission' }
+if (-not (Test-AutomaticStoreSubmission 'workflow_run' @(@{name='release';conclusion='success'}))) { throw 'Published tag was skipped' }
+if (-not (Test-AutomaticStoreSubmission 'workflow_dispatch' @())) { throw 'Explicit Store recovery was skipped' }
 foreach ($case in @(
     @{jobs=@()},
     @{jobs=@(@{name='release';conclusion='failure'})},
@@ -29,33 +29,31 @@ foreach ($case in @(
     try { $null = Test-AutomaticStoreSubmission 'workflow_run' $case.jobs } catch { $rejected = $true }
     if (-not $rejected) { throw 'Ambiguous source release status was accepted' }
 }
-$root = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) ('.cache/release-gate-tests/' + [guid]::NewGuid().ToString('N'))
-$null = New-Item -ItemType Directory -Force -Path $root
-Push-Location -LiteralPath $root
-try {
-    git init --quiet
-    if ($LASTEXITCODE -ne 0) { throw 'Cannot initialize fixture repository' }
-    git config user.name 'Release gate fixture'
-    git config user.email 'fixture@example.invalid'
-    git config commit.gpgsign false
-    $null = New-Item -ItemType Directory -Force cmd,.github/workflows,docs
-    Set-Content cmd/app.go 'package main'
-    git add .
-    git commit --quiet -m baseline
-    git tag v1.0.13
-    Set-Content .github/workflows/ci.yml 'maintenance'
-    git add .
-    git commit --quiet -m maintenance
-    if (Test-ReleaseNeededSince 'v1.0.13') { throw 'CI-only commit triggered publication' }
-    Add-Content cmd/app.go '// production change'
-    git add .
-    git commit --quiet -m feature
-    Add-Content .github/workflows/ci.yml 'later CI fix'
-    git add .
-    git commit --quiet -m follow-up
-    if (-not (Test-ReleaseNeededSince 'v1.0.13')) { throw 'Unreleased source was hidden by a later CI-only commit' }
-    git mv cmd/app.go docs/app.md
-    git commit --quiet -m rename
-    if (-not (Test-ReleaseNeededSince 'v1.0.13')) { throw 'A production deletion was hidden by rename detection' }
-} finally { Pop-Location }
-Write-Host 'Verified maintenance/source classification, published-source comparison, rename/deletion handling and Store submission gating.'
+$sourceSHA = '1' * 40
+foreach ($case in @('valid tag','main advanced','legacy main recovery','foreign repository','PR run','failed run','wrong workflow','draft','prerelease','wrong tag','wrong owner','moved tag','outside main')) {
+    $run = @{id=123;path='.github/workflows/windows.yml';head_repository=@{full_name='owner/repo'};status='completed';conclusion='success';event='push';head_sha=$sourceSHA;head_branch='v1.0.15'}
+    $release = @{tag_name='v1.0.15';draft=$false;prerelease=$false;body='<!-- skopeo-win-release-run:123 -->'}
+    $commit = $sourceSHA
+    $mergeBase = $sourceSHA
+    switch ($case) {
+        'main advanced' { $run.head_branch = 'v1.0.15' } # Only the merge base must match, not main's current tip.
+        'legacy main recovery' { $run.head_branch = 'main' }
+        'foreign repository' { $run.head_repository.full_name = 'other/repo' }
+        'PR run' { $run.event = 'pull_request' }
+        'failed run' { $run.conclusion = 'failure' }
+        'wrong workflow' { $run.path = '.github/workflows/other.yml' }
+        'draft' { $release.draft = $true }
+        'prerelease' { $release.prerelease = $true }
+        'wrong tag' { $release.tag_name = 'v1.0.16' }
+        'wrong owner' { $release.body = '<!-- skopeo-win-release-run:999 -->' }
+        'moved tag' { $commit = '2' * 40 }
+        'outside main' { $mergeBase = '2' * 40 }
+    }
+    $caught = $false
+    try {
+        Assert-StoreSourceRun $run 'owner/repo'
+        Assert-StoreSourceRelease $run '1.0.15' $release $commit $mergeBase
+    } catch { $caught = $true }
+    if ($caught -eq ($case -in @('valid tag','main advanced','legacy main recovery'))) { throw "Unexpected Store source result: $case" }
+}
+Write-Host 'Verified tag-only publication, build-only main/manual runs, invalid tags, Store eligibility and trusted release provenance.'

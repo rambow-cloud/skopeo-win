@@ -2,36 +2,45 @@
 
 skopeo-win is maintained independently. Its historical origin is upstream Skopeo v1.23.0; this does not determine future release numbers. Maintenance consists of bug fixes, security and dependency updates, and selected feature ports through issues and reviewed PRs. Bulk upstream source merges are not part of this process.
 
-## Version sequence
+## Maintainer-selected versions
 
-The independent release sequence starts at `v1.0.0`. Each new release increments the patch number: `v1.0.1`, `v1.0.2`, and so on. Allocation considers existing stable tags and releases, including visible drafts and orphan tags, to avoid reuse. A deliberately introduced higher major or minor release becomes the new counter base. The legacy tag `v1.23.0` is excluded and reserved permanently.
+Main pushes and merges, PRs, and normal manual workflow dispatches run builds, integration tests and vulnerability scans without publishing. They use `0.0.0-dev.<commit>` versions and do not produce Store bundles or automatically submit Store updates. Local builds default to `0.0.0-dev`.
 
-Successful pushes to `main` produce releases only when production inputs differ from the latest published independent release. Changes limited to `.github/`, `docs/`, and the top-level `README.md`, `WINDOWS.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `SECURITY.md` guides run checks without publishing. All other paths conservatively require a release, including source, dependencies, build and packaging scripts, assets and licenses. Comparison with the published source includes deletions and both sides of renames, so a later CI fix cannot hide previously unreleased production changes.
+Accumulate reviewed features on main, then create and push a stable `vX.Y.Z` tag to publish the chosen version. Normally increment the patch number, for example `v1.0.14` to `v1.0.15`; minor and major releases are also explicit choices. The exact tag version is embedded in both executables and checked through `--version`. There is no automatic version allocation.
 
-A normal manual workflow dispatch on `main` explicitly requests a release, even for the same source commit. Rerunning a workflow that already has a release associated with its run ID reuses that version and verifies the existing release. Maintenance-only builds do not allocate a stable version or produce a Store bundle; automatic Store submission skips runs whose release job was skipped. Manual Store submission retains its existing source and artifact validation. Failed runs without reserved tags do not consume a version. Interrupted drafts may reserve version numbers; numbering is monotonic but gaps are permitted.
+The selected version must be newer than other reserved stable tags and releases, including drafts and orphan tags. The historical `v1.23.0` is excluded from comparisons and permanently reserved. Major versions must be positive and each component must fit the Store package limit of 65535. Prerelease tags and versions with leading zeroes are rejected.
 
-PR builds and maintenance-only main builds use `0.0.0-dev.<commit>` and local builds default to `0.0.0-dev`. `version.Version` is a development fallback, not a release counter. CI resolves the independent version before compiling and injects it into both executables with the Go linker. It checks the native executable's `--version` output before publication.
+Only a tag **push** requests publication. Lightweight and annotated tags are supported, and the source commit must belong to main history. Manual dispatch against a tag remains a development build. A successful tagged release continues to trigger the existing Store automation. Manual Store recovery verifies the public release, source workflow, main ancestry and artifact; main can advance without invalidating a reviewed release tag.
+
+## Create a release tag
+
+After the desired changes have been merged and checked, choose an unused higher version and tag the intended main commit. For example, when `v1.0.14` is the latest reserved version:
+
+```powershell
+git switch main
+git pull --ff-only origin main
+git tag -a v1.0.15 -m "skopeo-win v1.0.15"
+git push origin v1.0.15
+```
+
+Push one release tag at a time. The tagged source must contain the tag-driven workflow; older workflow revisions retain their original behavior. Do not create an empty GitHub release first: the workflow owns draft creation and immutable asset publication. Do not move or recreate a tag to retry publication; rerun the original workflow's failed job instead.
 
 ## Publication and retries
 
-Every PR updates [the reviewed release summary](release-notes.md) with user-facing feature descriptions, defaults, compatibility limits, and accurate verification scope. This file is a snapshot for the next publication, not a claim that every included capability is newly introduced in that patch. The publisher combines it with the allocated version, exact source commit, workflow link, and binary limitations. Empty or missing summaries fail publication. A manual rebuild of the same commit uses the same reviewed summary with a new independent patch version; later edits affect future publications only.
+Every PR updates [the reviewed release summary](release-notes.md) with user-facing feature descriptions, defaults, compatibility limits and accurate verification scope. The summary accumulates reviewed content for the next tagged publication; it is not a claim that every capability is newly introduced in that patch. The publisher combines the summary from the tagged source with the selected version, exact commit, workflow link and binary limitations. Empty or missing summaries fail publication. Later edits affect future publications only.
 
-Release publication requires the Windows executable integration suite in addition to command/release tests and vulnerability gates. See [Windows integration tests](windows-integration-tests.md) for coverage and local execution. Publication retries preserve existing public notes and assets. Maintainers may explicitly correct release-description text to document actual behavior and evidence without changing tags or binary assets.
+Publication requires the Windows executable integration suite, command/release tests and vulnerability gates. See [Windows integration tests](windows-integration-tests.md) for coverage and local execution. Tag workflows share a serialized release concurrency group. The publisher requires the maintainer-created tag to exist, resolves annotated tags to their source commit and rejects mismatched source or ownership. It never creates, moves or deletes release tags.
 
-Main workflows are serialized by the workflow concurrency group. A publisher rejects tags pointing to another commit and releases belonging to another workflow run. If a separately created tag collides with an allocation, publication fails instead of moving the tag or replacing files.
+After the build, tests and scans pass, the publication job:
 
-After the build, tests, and vulnerability checks pass, the publication job:
-
-1. Requires exactly two executables and their two SHA-256 files and verifies the checksums.
-2. Creates a draft release targeting the exact build commit.
+1. Requires exactly two executables and their two SHA-256 files and verifies their checksums.
+2. Creates a draft release for the existing tag and exact build commit.
 3. Uploads only missing assets, without `--clobber`.
-4. Checks the server-side digest of every asset before making the release public and marking it Latest.
+4. Rechecks the draft ID, workflow ownership, tag commit and server-side asset digests before publishing by ID and marking Latest.
 
-Draft creation records the server-assigned release ID. After uploading, the publisher revalidates that ID, workflow ownership, tag commit, and every asset digest, then publishes by ID. Replaced drafts or changed ownership fail closed. If the same verified release has already become public, the publisher returns without editing it. These checks constrain this publisher; a repository administrator with write access can still independently change GitHub release state.
+If an upload fails, the draft stays unpublished. Rerunning the failed publication job resumes missing files but refuses existing assets with different content. A retry of the same already-public release verifies its tag and all four digests without editing it. A newer reserved version can block an older retry; investigate rather than changing existing tags or assets.
 
-If an upload fails, the draft stays unpublished. Rerunning the failed publication job resumes missing files, but refuses any existing asset with different content. If publication already completed, a retry only verifies the tag and all four asset digests and returns without changing the release. Existing public releases with missing or mismatched files are not repaired in place; investigate and publish a new version instead.
-
-Do not delete/recreate published tags, overwrite assets, or edit a released binary. This is enforced by the project's publisher; it does not claim that GitHub repository administrators are technically unable to change a release through other tools.
+Existing public releases with missing or mismatched files are not repaired in place. Investigate and publish a new version instead. Maintainers may explicitly correct release-description text without changing tags or binary assets. These safeguards constrain this publisher; repository administrators can still independently change GitHub release state through other tools.
 
 ## Historical release
 
