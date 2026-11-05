@@ -1,4 +1,4 @@
-// Command release plans and publishes independent skopeo-win releases through gh.
+// Command release validates manual version tags and publishes skopeo-win releases through gh.
 package main
 
 import (
@@ -12,7 +12,8 @@ import (
 
 func run() error {
 	mode := flag.String("mode", "plan", "plan or publish")
-	version := flag.String("version", "", "allocated independent version")
+	version := flag.String("version", "", "independent version to publish")
+	tag := flag.String("tag", "", "existing maintainer-created stable tag for planning")
 	assets := flag.String("assets", "dist", "directory containing the four release files")
 	notesFile := flag.String("notes-file", "docs/release-notes.md", "reviewed Markdown release summary")
 	output := flag.String("output", "", "append version and tag to a GitHub Actions output file")
@@ -30,11 +31,8 @@ func run() error {
 	case "plan":
 		resolved := "0.0.0-dev." + commit[:12]
 		if !*preview {
-			refs, releases, err := m.State()
-			if err != nil {
-				return err
-			}
-			resolved, err = release.Next(refs, releases, m.RunID, m.Commit)
+			var err error
+			resolved, err = m.PlanTag(*tag)
 			if err != nil {
 				return err
 			}

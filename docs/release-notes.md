@@ -7,7 +7,7 @@
 
 - **Store acceptance fix:** Store packages now declare a visible default application entry instead of the headless entry rejected in 1.0.6.0. The Start-menu entry opens a native usage window that waits for Enter; command aliases still invoke the CLI directly. Package verification rejects headless manifests and tests launcher input/exit behavior. `runFullTrust` remains subject to Microsoft's separate approval.
 
-- **Microsoft Store packaging:** stable main builds produce a separate x64/ARM64 MSIX bundle with `skopeo` and `skopeo-win` command aliases and the registered RambowCloud identity. Actions can also package an existing immutable release without rebuilding or replacing its executables. Builds retain submission artifacts; a separately configured Store workflow can submit the update. Store signing and publication remain subject to Microsoft certification.
+- **Microsoft Store packaging:** stable tagged builds produce a separate x64/ARM64 MSIX bundle with `skopeo` and `skopeo-win` command aliases and the registered RambowCloud identity. Actions can also package an existing immutable release without rebuilding or replacing its executables. Builds retain submission artifacts; a separately configured Store workflow can submit the update. Store signing and publication remain subject to Microsoft certification.
 
 - **Selective manifest-list signatures:** `copy` and `sync` support `--remove-list-signatures`, removing list signatures while preserving per-platform signatures. It cannot be combined with `--remove-signatures` and is intended for manifest-list copies.
 - **Platform subset copies:** `copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures` creates a manifest list containing only the chosen platform. The default still creates a sparse list. Signed lists and `--preserve-digests` continue to prevent prohibited manifest changes.
@@ -17,7 +17,7 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 
 ## Fixes and maintenance
 
-- **Maintenance release gating:** automation and documentation changes run build, integration and vulnerability checks without allocating a stable version, publishing a release or submitting a Store update. Production input changes are compared with the latest published source so unreleased code cannot be hidden by a later CI fix. Explicit manual releases remain available.
+- **Maintainer-controlled tagged releases:** main merges, PRs and normal manual builds run build, integration and vulnerability checks without publishing or submitting a Store update. A maintainer-created stable tag selects the exact release version after features accumulate on main. Lightweight and annotated tags are supported, with main-history, version-order and immutable-publication checks. Store delivery verifies the published tag and source workflow even if main has advanced.
 
 - **Independent repository automation:** removed inherited upstream Cirrus-monitor and issue-lock workflow callers whose old Podman references fail GitHub's workflow validation. Windows build/release, Store submission and the standalone stale-issue workflow are retained. Historical failed runs remain available as evidence.
 

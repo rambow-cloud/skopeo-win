@@ -16,7 +16,7 @@ By default, the script creates `dist\skopeo-windows-amd64.exe` and its SHA-256 c
 .\build-windows.ps1 -Architecture amd64,arm64
 ```
 
-Local builds identify themselves as `0.0.0-dev`. To reproduce a tagged release version, use `-Version 1.0.0` from that tag's source. CI allocates its version automatically before building.
+Local builds identify themselves as `0.0.0-dev`. To reproduce a tagged release version, use `-Version 1.0.0` from that tag's source. Release CI uses the exact maintainer-created tag version; other CI builds use development versions.
 
 Debug symbols are retained by default so binary vulnerability scans can identify packages accurately. Stripped PE executables make govulncheck fall back to conservative module-level matching. Release builds must retain symbols; `-KeepDebugSymbols:$false` is available only for custom size-optimized builds that will not pass the same scan guarantees.
 
@@ -98,9 +98,9 @@ Common transports that do not depend on Linux container storage drivers are supp
 
 Bug fixes, security updates, and selected feature ports are implemented through scoped issues and reviewed PRs. Do not bulk-merge upstream Skopeo source releases or copy their version constants. Dependency upgrades remain supported and must pass Windows compatibility and vulnerability checks. Preserve applicable upstream copyright and license notices when porting a feature.
 
-## Automatic releases
+## Tagged releases
 
-Successful `main` push builds publish independent releases when production inputs have changed since the latest published release. Automation and documentation maintenance runs checks without publishing or updating the Store. Normal manual `main` runs explicitly request a release. Independent releases start at `v1.0.0` and increment the patch number. The version is allocated before compilation and embedded in the executables, so `--version` matches the release tag. PRs, maintenance-only main builds and local builds use development versions.
+Merges and pushes to `main`, PRs and normal manual builds run checks without publishing or updating the Store. Accumulate reviewed features on `main`, then create and push an unused stable tag such as `v1.0.15` to release. The exact tag version is embedded in both executables, so `--version` matches the release tag. The tagged source must belong to main history. A successful tagged release triggers the existing Store automation. Other builds use development versions.
 
 Publication first creates a draft, verifies all four uploaded asset digests, and then makes it public. A release-job retry resumes missing draft uploads or verifies an already published release without modifying it. Published files and tags are never overwritten or moved. Historical `v1.23.0` is retained but excluded from the independent counter. See [release-policy.md](docs/release-policy.md) for details.
 
