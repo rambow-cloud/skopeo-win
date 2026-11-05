@@ -15,6 +15,8 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 
 ## Fixes and maintenance
 
+- **Maintenance release gating:** automation and documentation changes run build, integration and vulnerability checks without allocating a stable version, publishing a release or submitting a Store update. Production input changes are compared with the latest published source so unreleased code cannot be hidden by a later CI fix. Explicit manual releases remain available.
+
 - **Independent repository automation:** removed inherited upstream Cirrus-monitor and issue-lock workflow callers whose old Podman references fail GitHub's workflow validation. Windows build/release, Store submission and the standalone stale-issue workflow are retained. Historical failed runs remain available as evidence.
 
 - **Store API diagnostics:** Store requests explicitly negotiate JSON, including empty draft-creation and commit requests. Failed requests retain the operation, HTTP status and structured API error fields after redacting credentials, bearer tokens and URLs; arbitrary response bodies remain hidden. Offline transaction checks cover these headers, diagnostic redaction and draft-creation rejection before upload.

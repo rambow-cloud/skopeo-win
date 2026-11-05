@@ -21,13 +21,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  submit:
+  source:
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_repository.full_name == github.repository &&
         github.event.workflow_run.event != 'pull_request'))
+    runs-on: windows-latest
+    outputs:
+      submit: ${{ steps.eligibility.outputs.submit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check source release eligibility
+        id: eligibility
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STORE_EVENT: ${{ github.event_name }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: ./.github/scripts/store-release-gate.ps1
+  submit:
+    needs: source
+    if: needs.source.outputs.submit == 'true'
     runs-on: windows-latest
     timeout-minutes: 25
     steps:

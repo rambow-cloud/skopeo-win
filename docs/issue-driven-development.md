@@ -71,4 +71,4 @@ This is a contributor workflow supported by templates, not a branch protection r
 
 Merge after review and relevant checks pass. If the issue requires a published artifact or external action, use `Refs #N` and keep it open until that outcome is verified. Record the final PR, CI run, and release link when relevant before closing the issue.
 
-Successful `main` push builds publish a new independent patch version under the [release policy](release-policy.md), including documentation changes. Existing published assets are not replaced. Follow-up work should have its own issue. Port selected features through scoped issues and PRs rather than bulk-merging upstream source releases.
+Successful `main` push builds publish a new independent patch version under the [release policy](release-policy.md) when production inputs have changed since the latest published release. Automation and documentation maintenance runs checks without publishing. Existing published assets are not replaced. Follow-up work should have its own issue. Port selected features through scoped issues and PRs rather than bulk-merging upstream source releases.
