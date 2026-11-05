@@ -83,6 +83,7 @@ jobs:
           ./hack/test-store-scan-gate.ps1
           ./hack/test-store-submission.ps1
           ./hack/test-store-submission-flow.ps1
+          ./hack/test-store-publication.ps1
       - name: Upload executable integration reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

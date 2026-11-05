@@ -12,6 +12,8 @@ The selected version must be newer than other reserved stable tags and releases,
 
 Only a tag **push** requests publication. Lightweight and annotated tags are supported, and the source commit must belong to main history. Manual dispatch against a tag remains a development build. A successful tagged release continues to trigger the existing Store automation. Manual Store recovery verifies the public release, source workflow, main ancestry and artifact; main can advance without invalidating a reviewed release tag.
 
+Store submissions have separate, durable publication tracking issues. Actions checks them hourly and after submission workflows, updating only changed status. Only Microsoft's `Published` status plus matching submission/package versions closes the associated tracker. Intermediate states and failures keep it open. Ordinary issue text cannot opt a human-created issue or PR into automatic closure; reviewed migration links cover pre-existing delivery issues. Registration is a separate task so an issue API failure can be retried without resubmitting a package. Store publication status checks do not create releases or change submitted packages.
+
 ## Create a release tag
 
 After the desired changes have been merged and checked, choose an unused higher version and tag the intended main commit. For example, when `v1.0.14` is the latest reserved version:
