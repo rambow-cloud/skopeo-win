@@ -27,6 +27,8 @@ func TestGlobalOptionsNewSystemContext(t *testing.T) {
 	res, err := opts.newSystemContext()
 	require.NoError(t, err)
 	assert.Equal(t, &types.SystemContext{
+		ArchitectureChoice: defaultImageArchitecture(),
+		OSChoice:           "linux",
 		// User-Agent is set by default.
 		DockerRegistryUserAgent: defaultUserAgent,
 	}, res)

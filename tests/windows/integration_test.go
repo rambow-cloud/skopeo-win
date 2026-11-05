@@ -48,9 +48,11 @@ func TestMain(m *testing.M) {
 }
 
 type cli struct {
-	root   string
-	env    []string
-	policy string
+	root          string
+	env           []string
+	policy        string
+	defaultPolicy bool
+	imageOS       string
 }
 
 func newCLI(t *testing.T) cli {
@@ -65,7 +67,7 @@ func newCLI(t *testing.T) cli {
 	for _, item := range os.Environ() {
 		key, _, _ := strings.Cut(item, "=")
 		switch strings.ToUpper(key) {
-		case "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "REGISTRY_AUTH_FILE", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY":
+		case "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "CONTAINERS_POLICY_JSON", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "REGISTRY_AUTH_FILE", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY":
 			continue
 		}
 		env = append(env, item)
@@ -73,8 +75,9 @@ func newCLI(t *testing.T) cli {
 	for _, key := range []string{"HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR"} {
 		env = append(env, key+"="+root)
 	}
-	env = append(env, "REGISTRY_AUTH_FILE="+filepath.Join(root, "auth.json"), "NO_PROXY=127.0.0.1,localhost,::1")
-	return cli{root: root, env: env}
+	env = append(env, "ProgramData="+filepath.Join(root, "system"), "REGISTRY_AUTH_FILE="+filepath.Join(root, "auth.json"), "NO_PROXY=127.0.0.1,localhost,::1")
+	// Existing fixtures contain Windows images; select that platform explicitly.
+	return cli{root: root, env: env, imageOS: "windows"}
 }
 
 func (c cli) run(t *testing.T, wantError string, args ...string) []byte {
@@ -92,9 +95,12 @@ func (c cli) execute(t *testing.T, wantError string, afterStart func(context.Con
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	global := []string{"--registries-conf", filepath.Join(c.root, "registries.conf"), "--registries.d", filepath.Join(c.root, "registries.d")}
-	if c.policy == "" {
+	if c.imageOS != "" {
+		global = append(global, "--override-os", c.imageOS)
+	}
+	if c.policy == "" && !c.defaultPolicy {
 		global = append(global, "--insecure-policy")
-	} else {
+	} else if c.policy != "" {
 		global = append(global, "--policy", c.policy)
 	}
 	cmd := exec.CommandContext(ctx, executable, append(global, args...)...)
@@ -199,6 +205,10 @@ type fixture struct {
 }
 
 func makeFixture(t *testing.T) fixture {
+	return makePlatformFixture(t, "windows")
+}
+
+func makePlatformFixture(t *testing.T, systems ...string) fixture {
 	t.Helper()
 	var raw, compressed bytes.Buffer
 	tw := tar.NewWriter(&raw)
@@ -222,14 +232,16 @@ func makeFixture(t *testing.T) fixture {
 	f := fixture{dir: t.TempDir(), layer: compressed.Bytes(), diffID: hash(raw.Bytes())}
 	f.layerDigest = hash(f.layer)
 	write(t, filepath.Join(f.dir, encoded(f.layerDigest)), f.layer)
-	for _, arch := range []string{"amd64", "arm64"} {
-		config := encode(t, map[string]any{"os": "windows", "architecture": arch, "rootfs": map[string]any{"type": "layers", "diff_ids": []string{f.diffID}}})
-		cd := descriptor{MediaType: configType, Digest: hash(config), Size: len(config)}
-		write(t, filepath.Join(f.dir, encoded(cd.Digest)), config)
-		m := encode(t, manifest{2, imageType, cd, []descriptor{{MediaType: layerType, Digest: f.layerDigest, Size: len(f.layer)}}})
-		d := descriptor{MediaType: imageType, Digest: hash(m), Size: len(m), Platform: &platform{"windows", arch}}
-		write(t, filepath.Join(f.dir, encoded(d.Digest)+".manifest.json"), m)
-		f.instances = append(f.instances, d)
+	for _, system := range systems {
+		for _, arch := range []string{"amd64", "arm64"} {
+			config := encode(t, map[string]any{"os": system, "architecture": arch, "rootfs": map[string]any{"type": "layers", "diff_ids": []string{f.diffID}}})
+			cd := descriptor{MediaType: configType, Digest: hash(config), Size: len(config)}
+			write(t, filepath.Join(f.dir, encoded(cd.Digest)), config)
+			m := encode(t, manifest{2, imageType, cd, []descriptor{{MediaType: layerType, Digest: f.layerDigest, Size: len(f.layer)}}})
+			d := descriptor{MediaType: imageType, Digest: hash(m), Size: len(m), Platform: &platform{system, arch}}
+			write(t, filepath.Join(f.dir, encoded(d.Digest)+".manifest.json"), m)
+			f.instances = append(f.instances, d)
+		}
 	}
 	write(t, filepath.Join(f.dir, "manifest.json"), encode(t, index{2, indexType, f.instances}))
 	return f

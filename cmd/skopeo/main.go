@@ -87,8 +87,8 @@ func createApp() (*cobra.Command, *globalOptions) {
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
 	rootCommand.PersistentFlags().BoolVar(&opts.requireSigned, "require-signed", false, "require any pulled image to be signed")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesDirPath, "registries.d", "", "use registry configuration files in `DIR` (e.g. for container signature storage)")
-	rootCommand.PersistentFlags().StringVar(&opts.overrideArch, "override-arch", "", "use `ARCH` instead of the architecture of the machine for choosing images")
-	rootCommand.PersistentFlags().StringVar(&opts.overrideOS, "override-os", "", "use `OS` instead of the running OS for choosing images")
+	rootCommand.PersistentFlags().StringVar(&opts.overrideArch, "override-arch", defaultImageArchitecture(), "target image `ARCH` (defaults to the native machine architecture)")
+	rootCommand.PersistentFlags().StringVar(&opts.overrideOS, "override-os", "linux", "target image `OS`")
 	rootCommand.PersistentFlags().StringVar(&opts.overrideVariant, "override-variant", "", "use `VARIANT` instead of the running architecture variant for choosing images")
 	rootCommand.PersistentFlags().DurationVar(&opts.commandTimeout, "command-timeout", 0, "timeout for the command execution (e.g. 30s, 10m)")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesConfPath, "registries-conf", "", "path to the registries.conf file")
@@ -162,6 +162,10 @@ func main() {
 
 // getPolicyContext returns a *signature.PolicyContext based on opts.
 func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) {
+	return opts.getPolicyContextForOperation(true)
+}
+
+func (opts *globalOptions) getPolicyContextForOperation(writeDefault bool) (*signature.PolicyContext, error) {
 	var policy *signature.Policy // This could be cached across calls in opts.
 	if opts.insecurePolicy {
 		policy = &signature.Policy{Default: []signature.PolicyRequirement{signature.NewPRInsecureAcceptAnything()}}
@@ -170,7 +174,7 @@ func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) 
 		if err != nil {
 			return nil, err
 		}
-		p, err := signature.DefaultPolicy(sys)
+		p, err := loadDefaultImagePolicy(sys, writeDefault)
 		if err != nil {
 			return nil, err
 		}

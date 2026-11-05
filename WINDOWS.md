@@ -35,10 +35,55 @@ Rename the executable to `skopeo.exe` and add it to `PATH`, or run it directly:
 ```powershell
 .\dist\skopeo-windows-amd64.exe --version
 .\dist\skopeo-windows-amd64.exe inspect docker://docker.io/library/alpine:latest
-.\dist\skopeo-windows-amd64.exe copy docker://docker.io/library/alpine:latest oci:alpine:latest
+.\dist\skopeo-windows-amd64.exe copy docker://docker.io/library/nginx:latest docker-archive:./nginx.tar:nginx:latest
 ```
 
+The copy example creates `nginx.tar` in the current directory. Docker can import
+it with `docker load -i .\nginx.tar`; exporting the archive does not require Docker.
+Images default to `linux` and the native Windows machine architecture (`amd64`
+or `arm64`), including detection of ARM64 hosts running an emulated x64 binary.
+Explicit flags still take precedence:
+
+```powershell
+skopeo-win --override-os windows inspect docker://mcr.microsoft.com/windows/nanoserver:ltsc2022
+skopeo-win --override-arch arm64 inspect docker://docker.io/library/nginx:latest
+```
+
+`copy --all` and `sync --all` continue to copy every platform in a manifest list.
+For a named OCI layout on Windows, use an absolute path, for example
+`oci:C:\images\nginx:latest`.
+
 For private registries, use `skopeo login registry.example.com` or pass `--creds USER:PASSWORD` to an individual command. TLS certificate, authentication file, and policy file options work like their upstream Skopeo equivalents.
+
+## Image trust policy
+
+On a clean Windows profile, the first `copy` or non-dry-run `sync` that needs a
+policy creates `%APPDATA%\containers\policy.json` from an embedded template.
+If the template cannot be safely saved, the same policy is used in memory and
+the operation continues. `--version`, help, `inspect`, and `sync --dry-run` do not
+create this file. Concurrent first runs publish complete bytes without replacing
+an existing file; creation cannot follow a junction outside the configured root.
+
+The template rejects sources by default and permits only these public namespaces:
+
+- `docker.io/library` (Docker Official Images)
+- `mcr.microsoft.com`
+- `registry.k8s.io`
+- `quay.io/prometheus`
+- `ghcr.io/fluxcd`
+
+This is namespace-based acceptance of unsigned images, not cryptographic
+publisher-signature verification. HTTPS certificate verification remains enabled.
+Copying from other Docker Hub/GHCR namespaces, private registries or local image
+sources needs an explicit trust policy. Edit the generated file or select a policy using
+`--policy PATH` or `CONTAINERS_POLICY_JSON`. For signature enforcement, configure
+trusted signing identities in that policy and use `--require-signed` as needed.
+
+Existing user/system policies and explicit selections take precedence. Invalid
+existing policies and missing explicit policy paths remain errors; they are never
+silently replaced with the embedded template. The explicit `--insecure-policy`
+option remains available for operations where you intentionally accept every
+source. See the [policy format](https://github.com/containers/image/blob/main/docs/containers-policy.json.5.md).
 
 ## Windows feature scope
 

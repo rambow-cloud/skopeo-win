@@ -35,7 +35,13 @@ then open PowerShell or Windows Terminal:
 ```powershell
 skopeo-win --version
 skopeo-win --help
+skopeo-win copy docker://docker.io/library/nginx:latest docker-archive:./nginx.tar:nginx:latest
 ```
+
+Image selection defaults to Linux and your computer's native architecture.
+On Windows, the first copy or sync creates a policy allowing selected public
+image namespaces; existing policies take precedence. See the
+[policy defaults](WINDOWS.md#image-trust-policy) before adding other registries.
 
 For portable use, download the executable for your architecture from
 **[GitHub Releases](https://github.com/rambow-cloud/skopeo-win/releases/latest)**.
