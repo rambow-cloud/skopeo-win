@@ -45,6 +45,49 @@ func TestNewCLIArgumentDiagnostics(t *testing.T) {
 	}
 }
 
+func TestDefaultRootHelp(t *testing.T) {
+	c := newCLI(t)
+	help := c.executeExact(t, "", nil, "--help")
+	if help.exitCode != 0 || len(help.stderr) != 0 || !bytes.Contains(help.stdout, []byte("Available Commands:")) {
+		t.Fatalf("invalid explicit help: %+v", help)
+	}
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"no arguments", nil},
+		{"global flag", []string{"--debug"}},
+		{"global flag value", []string{"--command-timeout", "30s"}},
+		{"argument terminator", []string{"--"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := c.executeExact(t, "", nil, tc.args...)
+			if r.exitCode != 0 || len(r.stderr) != 0 || !bytes.Equal(r.stdout, help.stdout) {
+				t.Fatalf("default invocation differs from --help: code=%d stdout=%s stderr=%s", r.exitCode, r.stdout, r.stderr)
+			}
+			assertNoDefaultPolicy(t, c.root)
+		})
+	}
+	for _, tc := range []struct {
+		name, message string
+		args          []string
+	}{
+		{"unknown command", "Unrecognized command", []string{"inspec"}},
+		{"unknown flag", "unknown flag", []string{"--unknown-flag"}},
+		{"conflicting flags", "mutually exclusive", []string{"--insecure-policy", "--require-signed"}},
+		{"missing inspect argument", "exactly one argument expected", []string{"inspect"}},
+		{"missing copy arguments", "exactly two arguments expected", []string{"copy"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := c.executeExact(t, tc.message, nil, tc.args...)
+			if r.exitCode != 1 || len(r.stdout) != 0 {
+				t.Fatalf("invalid command succeeded or printed help to stdout: code=%d stdout=%s stderr=%s", r.exitCode, r.stdout, r.stderr)
+			}
+			assertNoDefaultPolicy(t, c.root)
+		})
+	}
+}
+
 func TestDurationAndCrossPlatformHelp(t *testing.T) {
 	c := newCLI(t)
 	for _, args := range [][]string{{"--help"}, {"inspect", "--help"}} {

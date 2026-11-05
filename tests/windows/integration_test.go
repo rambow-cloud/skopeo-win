@@ -92,8 +92,6 @@ type commandResult struct {
 
 func (c cli) execute(t *testing.T, wantError string, afterStart func(context.Context), args ...string) commandResult {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 	global := []string{"--registries-conf", filepath.Join(c.root, "registries.conf"), "--registries.d", filepath.Join(c.root, "registries.d")}
 	if c.imageOS != "" {
 		global = append(global, "--override-os", c.imageOS)
@@ -103,7 +101,15 @@ func (c cli) execute(t *testing.T, wantError string, afterStart func(context.Con
 	} else if c.policy != "" {
 		global = append(global, "--policy", c.policy)
 	}
-	cmd := exec.CommandContext(ctx, executable, append(global, args...)...)
+	return c.executeExact(t, wantError, afterStart, append(global, args...)...)
+}
+
+// executeExact invokes the executable without injecting any global flags.
+func (c cli) executeExact(t *testing.T, wantError string, afterStart func(context.Context), args ...string) commandResult {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, executable, args...)
 	cmd.Dir, cmd.Env = c.root, c.env
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr

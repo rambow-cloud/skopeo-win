@@ -24,6 +24,7 @@ The Windows key-diagnostic tests additionally use go-winio to coordinate a named
 | Scenario | Assertion |
 | --- | --- |
 | Executable identity | The child process reports the exact CI-allocated version. |
+| Default root help | `TestDefaultRootHelp` invokes the executable with literally zero arguments and compares stdout with explicit `--help`, requiring exit 0 and empty stderr. Valid global-only invocations also show help; invalid commands/flags and missing subcommand arguments still fail without creating a default policy. |
 | Registry round trip | Push both Windows architectures, inspect the index and arm64 config, list tags, pull both instances, and compare layer bytes and instance manifests. A missing image must return a failure. |
 | Platform subsets | Default selection keeps a sparse index; stripping pushes a one-platform index to the registry; preserve-digests rejects an incompatible change. |
 | Signature controls | Directory copies preserve actual signature packets by default, selectively remove list signatures, remove all signatures, and reject signed-list changes or conflicting flags. These packets are opaque under the test's explicit insecure policy; this scenario does not establish cryptographic trust. |

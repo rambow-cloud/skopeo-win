@@ -55,6 +55,11 @@ For a named OCI layout on Windows, use an absolute path, for example
 
 For private registries, use `skopeo login registry.example.com` or pass `--creds USER:PASSWORD` to an individual command. TLS certificate, authentication file, and policy file options work like their upstream Skopeo equivalents.
 
+Running `skopeo-win` without a command displays the same help as `skopeo-win --help`
+and exits successfully with status 0. Valid global flags without a command also
+display help. Unknown commands, invalid flags and missing required subcommand
+arguments remain errors.
+
 ## Image trust policy
 
 On a clean Windows profile, the first `copy` or non-dry-run `sync` that needs a
