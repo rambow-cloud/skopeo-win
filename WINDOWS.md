@@ -19,10 +19,13 @@ Windows path for named OCI layouts; `$PWD` supplies the current directory:
 
 ```powershell
 skopeo copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
+skopeo copy docker://docker.io/library/nginx:latest "docker-archive:$PWD\nginx.tar:nginx:latest"
 skopeo copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
 skopeo copy docker://docker.io/library/nginx:latest "oci:$PWD\nginx-oci:latest"
 ```
 
+Docker archives accept absolute drive-letter or relative paths, including spaces;
+tag/index selectors follow the archive path. Both slash styles work on Windows.
 `docker-archive:` creates a tar file; `dir:` stores separate manifests/layers;
 `oci:` creates an OCI layout. `copy --all` copies all image platforms. No Docker
 daemon is needed; Docker can optionally import the tar with `docker load -i .\nginx.tar`.
