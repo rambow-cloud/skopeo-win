@@ -76,7 +76,7 @@ Run the following command once to enable completion, then restart PowerShell as
 prompted. Ordinary CLI commands never configure profiles.
 
 ```powershell
-skopeo-win autocomplete
+skopeo-win completion
 ```
 
 Setup adds a managed block to the calling console host's current-user profile
@@ -86,9 +86,9 @@ and profiles are created at user scope; administrator access is unnecessary.
 For custom hosts such as VS Code, select the current profile explicitly:
 
 ```powershell
-skopeo-win autocomplete --profile "$PROFILE"
-skopeo-win autocomplete --status
-skopeo-win autocomplete --uninstall
+skopeo-win completion --profile "$PROFILE"
+skopeo-win completion --status
+skopeo-win completion --uninstall
 ```
 
 Use the same `--profile` selection for status/removal of a custom host. Existing
@@ -99,7 +99,7 @@ Documents folder under `PowerShell\SkopeoWin`. Setup reports file/configuration
 errors and never changes execution policy; the host's policy must permit profiles.
 
 Uninstall disables profile loading; restart PowerShell to unload an already
-registered completer. Run `autocomplete` again to re-enable it. Set
+registered completer. Run `completion` again to re-enable it. Set
 `SKOPEO_POWERSHELL_COMPLETION=off` to suppress profile loading. Advanced hosts may
 set the semicolon-separated `SKOPEO_POWERSHELL_PROFILES` absolute path list, or use
 repeatable `--profile PATH` for explicit setup/removal. `completion powershell`
