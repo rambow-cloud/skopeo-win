@@ -18,8 +18,7 @@ const (
 )
 
 var (
-	refRegexp        = regexp.MustCompile(`^` + component + `(?:/` + component + `)*$`)
-	windowsRefRegexp = regexp.MustCompile(`^([a-zA-Z]:\\.+?):(.*)$`)
+	refRegexp = regexp.MustCompile(`^` + component + `(?:/` + component + `)*$`)
 )
 
 // ValidateImageName returns nil if the image name is empty or matches the open-containers image name specs.
@@ -46,18 +45,12 @@ func SplitPathAndImage(reference string) (string, string) {
 }
 
 func splitPathAndImageWindows(reference string) (string, string) {
-	groups := windowsRefRegexp.FindStringSubmatch(reference)
-	// nil group means no match
-	if groups == nil {
-		return reference, ""
+	volume := ""
+	if filepath.IsAbs(reference) {
+		volume = filepath.VolumeName(reference)
 	}
-
-	// we expect three elements. First one full match, second the capture group for the path and
-	// the third the capture group for the image
-	if len(groups) != 3 {
-		return reference, ""
-	}
-	return groups[1], groups[2]
+	path, image, _ := strings.Cut(strings.TrimPrefix(reference, volume), ":")
+	return volume + path, image
 }
 
 func splitPathAndImageNonWindows(reference string) (string, string) {
@@ -68,9 +61,13 @@ func splitPathAndImageNonWindows(reference string) (string, string) {
 // ValidateOCIPath takes the OCI path and validates it.
 func ValidateOCIPath(path string) error {
 	if runtime.GOOS == "windows" {
-		// On Windows we must allow for a ':' as part of the path
-		if strings.Count(path, ":") > 1 {
-			return fmt.Errorf("Invalid OCI reference: path %s contains more than one colon", path)
+		// Allow only the absolute volume colon, never a stream/extra path colon.
+		colonPath := path
+		if filepath.IsAbs(path) {
+			colonPath = strings.TrimPrefix(path, filepath.VolumeName(path))
+		}
+		if strings.Contains(colonPath, ":") {
+			return fmt.Errorf("Invalid OCI reference: path %s contains a colon outside its absolute volume", path)
 		}
 	} else {
 		if strings.Contains(path, ":") {

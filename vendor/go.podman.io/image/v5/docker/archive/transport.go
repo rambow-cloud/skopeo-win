@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -62,7 +63,14 @@ func ParseReference(refString string) (types.ImageReference, error) {
 		return nil, fmt.Errorf("docker-archive reference %s isn't of the form <path>[:<reference>]", refString)
 	}
 
-	path, tagOrIndex, gotTagOrIndex := strings.Cut(refString, ":")
+	// An absolute Windows volume is part of the filename, not a selector.
+	// Keep single-letter relative filenames (x:repo:tag) unambiguous.
+	volume := ""
+	if filepath.IsAbs(refString) {
+		volume = filepath.VolumeName(refString)
+	}
+	path, tagOrIndex, gotTagOrIndex := strings.Cut(strings.TrimPrefix(refString, volume), ":")
+	path = volume + path
 	var nt reference.NamedTagged
 	sourceIndex := -1
 
@@ -112,7 +120,11 @@ func NewIndexReference(path string, sourceIndex int) (types.ImageReference, erro
 func newReference(path string, ref reference.NamedTagged, sourceIndex int,
 	archiveReader *tarfile.Reader, writer *Writer,
 ) (types.ImageReference, error) {
-	if strings.Contains(path, ":") {
+	colonPath := path
+	if filepath.IsAbs(path) {
+		colonPath = strings.TrimPrefix(path, filepath.VolumeName(path))
+	}
+	if strings.Contains(colonPath, ":") {
 		return nil, fmt.Errorf("Invalid docker-archive: reference: colon in path %q is not supported", path)
 	}
 	if ref != nil && sourceIndex != -1 {

@@ -1,5 +1,7 @@
 ## Features
 
+- **Windows archive paths:** Docker archives accept absolute drive-letter paths with spaces and either slash style, alongside relative paths, tags and source indexes. `list-tags` reads those archives too. OCI layouts/archives share Windows-aware path splitting, including named relative paths. Executable tests cover real archive exports/restores and layer integrity; relative archive workarounds are no longer required.
+
 - **Short Windows command:** use `skopeo` in the terminal, documentation and PowerShell completion. Store packages expose only `skopeo.exe`; portable downloads can be renamed to `skopeo.exe`.
 
 - **PowerShell Tab completion:** run `skopeo completion` once, then restart PowerShell. This PowerShell-only setup command has no shell subcommands. Setup preserves or creates the current user's current console-host profile; custom hosts can select `--profile "$PROFILE"`. Ordinary commands never edit profiles. Completion supports subcommands, options, common values/platform lists and transport prefixes for execution aliases and portable binaries. Status/removal controls remain available. The completer passes literal arguments without evaluating command text or querying registries. Integration tests exercise actual PowerShell 5.1/7 setup and completion, help without shell subcommands, rejection of removed commands, current-host discovery, profile creation/preservation/idempotence, encoding, removal and quoted/metacharacter paths.
