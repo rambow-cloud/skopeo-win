@@ -104,6 +104,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	flag := commonFlag.OptionalBoolFlag(rootCommand.Flags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
 	flag.Hidden = true
 	rootCommand.AddCommand(
+		powerShellCompletionCommand(true),
 		completionCommand(rootCommand),
 		copyCmd(&opts),
 		deleteCmd(&opts),
@@ -157,15 +158,13 @@ func main() {
 		return
 	}
 	rootCmd, _ := createApp()
-	command, err := rootCmd.ExecuteC()
-	if err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		if isNotFoundImageError(err) {
 			logrus.StandardLogger().Log(logrus.FatalLevel, err)
 			logrus.Exit(2)
 		}
 		logrus.Fatal(err)
 	}
-	autoConfigurePowerShell(command)
 }
 
 // getPolicyContext returns a *signature.PolicyContext based on opts.

@@ -72,39 +72,40 @@ PowerShell 7 and Windows PowerShell 5.1 support Tab completion for `skopeo`,
 includes commands, options, common OS/architecture/format values, platform lists
 and image-transport prefixes. It does not query registries.
 
-The first successful ordinary interactive Windows invocation, including bare
-invocation, attempts per-user setup for installed PowerShell hosts whose persistent
-execution policy permits unsigned local profiles. Explicit help/version requests,
-completion requests, failed commands and unattended processes do not install it.
-Setup is best effort and never changes execution policy. A child executable cannot
-register a completer into its running parent: open a new terminal, or enable and
-load it immediately with:
+Run the following command once to enable completion, then restart PowerShell as
+prompted. Ordinary CLI commands never configure profiles.
 
 ```powershell
-skopeo-win completion powershell --install
-. (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\SkopeoWin\completion.ps1')
-skopeo-win completion powershell --status
+skopeo-win autocomplete
 ```
 
-Profiles must be permitted by the host's current execution policy. Explicit setup
-reports file/configuration errors rather than bypassing policy. The shared script
-is stored in the known Documents folder under `PowerShell\SkopeoWin`, and managed
-blocks are added to the current-user all-hosts profiles. Existing content and
-encoding are preserved; changed nonempty profiles receive unique `.skopeo-win-*.bak`
-backups. Signed, linked and ambiguous profiles are not overwritten.
+Setup adds a managed block to the calling console host's current-user profile
+(`Microsoft.PowerShell_profile.ps1` under Documents\PowerShell for PowerShell 7,
+or Documents\WindowsPowerShell for Windows PowerShell 5.1). Missing directories
+and profiles are created at user scope; administrator access is unnecessary.
+For custom hosts such as VS Code, select the current profile explicitly:
 
 ```powershell
-skopeo-win completion powershell --uninstall
-# Re-enable later:
-skopeo-win completion powershell --install
+skopeo-win autocomplete --profile "$PROFILE"
+skopeo-win autocomplete --status
+skopeo-win autocomplete --uninstall
 ```
 
-Disabling persists across future CLI invocations; open a new terminal to unload an
-already registered completer. Set `SKOPEO_POWERSHELL_COMPLETION=off` to suppress
-automatic setup/profile loading. Advanced hosts may set the semicolon-separated
-`SKOPEO_POWERSHELL_PROFILES` absolute path list, or use repeatable `--profile PATH`
-for explicit setup/removal. `completion powershell` prints a standalone script;
-`--no-descriptions` omits descriptions. Bash, Zsh and Fish generation remain available.
+Use the same `--profile` selection for status/removal of a custom host. Existing
+content and encoding are preserved, repeated setup is idempotent, and changed
+nonempty profiles receive unique `.skopeo-win-*.bak` backups. Signed, linked and
+ambiguous profiles are not overwritten. The shared script is stored in the known
+Documents folder under `PowerShell\SkopeoWin`. Setup reports file/configuration
+errors and never changes execution policy; the host's policy must permit profiles.
+
+Uninstall disables profile loading; restart PowerShell to unload an already
+registered completer. Run `autocomplete` again to re-enable it. Set
+`SKOPEO_POWERSHELL_COMPLETION=off` to suppress profile loading. Advanced hosts may
+set the semicolon-separated `SKOPEO_POWERSHELL_PROFILES` absolute path list, or use
+repeatable `--profile PATH` for explicit setup/removal. `completion powershell`
+prints a standalone script, and its legacy `--install`, `--status` and `--uninstall`
+controls remain available. `--no-descriptions` omits descriptions. Bash, Zsh and
+Fish generation remain available.
 
 ## Image trust policy
 
