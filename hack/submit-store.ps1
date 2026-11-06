@@ -4,12 +4,14 @@ param(
     [Parameter(Mandatory = $true)] [string] $Bundle,
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$')] [string] $Version,
+    [Parameter(Mandatory = $true)] [string] $ReleaseNotesFile,
     [string] $OutputDirectory = '.cache/store-submission'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'store-submission.psm1') -Force
+$notes = Get-StoreReleaseNotes $Version (Get-Content -Raw -LiteralPath $ReleaseNotesFile)
 $bundlePath = (Resolve-Path -LiteralPath $Bundle).Path
 $fileName = [IO.Path]::GetFileName($bundlePath)
 if ($fileName -cne "skopeo-win-$Version.0.msixbundle") { throw 'Bundle name differs from the requested version' }
@@ -61,7 +63,7 @@ $headers = @{ Authorization = "Bearer $($auth.access_token)"; Accept = 'applicat
 $baseUri = 'https://manage.devcenter.microsoft.com/v1.0/my/applications/9MT5QPKZDHGD'
 $application = Invoke-SafeRequest 'Get Store application' @{ Uri = $baseUri; Headers = $headers; TimeoutSec = 60 }
 $applicationData = $application | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
-Assert-StoreApplication $applicationData
+Assert-StoreApplication $applicationData -InspectPending
 $publishedId = $applicationData['lastPublishedApplicationSubmission']['id']
 if ($publishedId -notmatch '^\d+$') { throw 'Invalid published submission ID' }
 $published = Invoke-SafeRequest 'Get published submission' @{ Uri = "$baseUri/submissions/$publishedId"; Headers = $headers; TimeoutSec = 60 }
@@ -70,20 +72,28 @@ $publishedData = $published | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHa
 foreach ($package in $publishedData['applicationPackages']) {
     if ([version]$package['version'] -ge [version]"$Version.0") { throw 'This version is already published or has been superseded' }
 }
-$submission = Invoke-SafeRequest 'Create Store submission' @{ Uri = "$baseUri/submissions"; Method = 'Post'; Headers = $headers; ContentType = 'application/json'; TimeoutSec = 60 }
-$data = $submission | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
+$pendingId = if ($applicationData['pendingApplicationSubmission']) { $applicationData['pendingApplicationSubmission']['id'] } else { $null }
+if ($pendingId) {
+    if ($pendingId -notmatch '^\d+$') { throw 'Invalid pending submission ID' }
+    $submission = Invoke-SafeRequest 'Inspect pending Store submission' @{ Uri = "$baseUri/submissions/$pendingId"; Headers = $headers; TimeoutSec = 60 }
+    $data = $submission | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
+    Assert-StoreUnchangedDraft $data $publishedData $pendingId
+    Write-Host "Resuming unchanged Store draft $pendingId."
+} else {
+    $submission = Invoke-SafeRequest 'Create Store submission' @{ Uri = "$baseUri/submissions"; Method = 'Post'; Headers = $headers; ContentType = 'application/json'; TimeoutSec = 60 }
+    $data = $submission | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
+}
 $submissionId = $data['id']
 if ($submissionId -notmatch '^\d+$') { throw 'Store returned an invalid submission ID' }
 $report.submissionId = $submissionId
 $report.status = 'PendingCommit'
 Save-Report
-Write-Host "Created Store submission $submissionId for $Version.0. Existing drafts were not deleted."
+Write-Host "Using Store submission $submissionId for $Version.0. No drafts were deleted."
 $uploadUrl = [string]$data['fileUploadUrl']
 if ($env:GITHUB_ACTIONS -eq 'true' -and $uploadUrl) { Write-Output "::add-mask::$uploadUrl" }
 try { $uploadUri = [uri]$uploadUrl } catch { throw 'Store returned an invalid upload destination' }
 if ($uploadUri.Scheme -cne 'https' -or -not $uploadUri.DnsSafeHost.EndsWith('.blob.core.windows.net') -or
     $uploadUri.UserInfo -or $uploadUri.Port -ne 443) { throw 'Store returned an unexpected upload destination' }
-$notes = "Version $Version adds scoped public-image trust defaults and Linux/native-architecture image selection on Windows. A missing policy is generated automatically or supplied by the embedded template; configured policies, signature requirements and TLS checks remain in effect."
 $updated = New-StorePackageUpdate $data "$Version.0" $fileName $notes
 $null = Invoke-SafeRequest 'Update Store package metadata' @{
     Uri = "$baseUri/submissions/$submissionId"; Method = 'Put'; Headers = $headers
