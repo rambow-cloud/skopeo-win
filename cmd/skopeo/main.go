@@ -60,8 +60,8 @@ func createApp() (*cobra.Command, *globalOptions) {
 		PersistentPreRunE: opts.before,
 		SilenceUsage:      true,
 		SilenceErrors:     true,
-		// Hide the completion command which is provided by cobra
-		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true},
+		// A custom completion command provides safe PowerShell process invocation.
+		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 		// This is documented to parse "local" (non-PersistentFlags) flags of parent commands before
 		// running subcommands and handling their options. We don't really run into such cases,
 		// because all of our flags on rootCommand are in PersistentFlags, except for the deprecated --tls-verify;
@@ -104,6 +104,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	flag := commonFlag.OptionalBoolFlag(rootCommand.Flags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
 	flag.Hidden = true
 	rootCommand.AddCommand(
+		completionCommand(rootCommand),
 		copyCmd(&opts),
 		deleteCmd(&opts),
 		generateSigstoreKeyCmd(),
@@ -119,6 +120,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 		tagsCmd(&opts),
 		untrustedSignatureDumpCmd(),
 	)
+	registerStaticCompletions(rootCommand)
 	return rootCommand, &opts
 }
 
@@ -155,13 +157,15 @@ func main() {
 		return
 	}
 	rootCmd, _ := createApp()
-	if err := rootCmd.Execute(); err != nil {
+	command, err := rootCmd.ExecuteC()
+	if err != nil {
 		if isNotFoundImageError(err) {
 			logrus.StandardLogger().Log(logrus.FatalLevel, err)
 			logrus.Exit(2)
 		}
 		logrus.Fatal(err)
 	}
+	autoConfigurePowerShell(command)
 }
 
 // getPolicyContext returns a *signature.PolicyContext based on opts.

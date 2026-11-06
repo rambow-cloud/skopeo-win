@@ -65,6 +65,47 @@ Command timeouts and retry counts must be non-negative. Retry delays must be 0
 (automatic backoff) or at least 10ns; invalid ranges fail before registry access or
 policy/output creation. A timeout of 0 continues to disable the command deadline.
 
+## PowerShell completion
+
+PowerShell 7 and Windows PowerShell 5.1 support Tab completion for `skopeo`,
+`skopeo-win`, their `.exe` aliases and portable executable names. Completion
+includes commands, options, common OS/architecture/format values, platform lists
+and image-transport prefixes. It does not query registries.
+
+The first successful ordinary interactive Windows invocation, including bare
+invocation, attempts per-user setup for installed PowerShell hosts whose persistent
+execution policy permits unsigned local profiles. Explicit help/version requests,
+completion requests, failed commands and unattended processes do not install it.
+Setup is best effort and never changes execution policy. A child executable cannot
+register a completer into its running parent: open a new terminal, or enable and
+load it immediately with:
+
+```powershell
+skopeo-win completion powershell --install
+. (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\SkopeoWin\completion.ps1')
+skopeo-win completion powershell --status
+```
+
+Profiles must be permitted by the host's current execution policy. Explicit setup
+reports file/configuration errors rather than bypassing policy. The shared script
+is stored in the known Documents folder under `PowerShell\SkopeoWin`, and managed
+blocks are added to the current-user all-hosts profiles. Existing content and
+encoding are preserved; changed nonempty profiles receive unique `.skopeo-win-*.bak`
+backups. Signed, linked and ambiguous profiles are not overwritten.
+
+```powershell
+skopeo-win completion powershell --uninstall
+# Re-enable later:
+skopeo-win completion powershell --install
+```
+
+Disabling persists across future CLI invocations; open a new terminal to unload an
+already registered completer. Set `SKOPEO_POWERSHELL_COMPLETION=off` to suppress
+automatic setup/profile loading. Advanced hosts may set the semicolon-separated
+`SKOPEO_POWERSHELL_PROFILES` absolute path list, or use repeatable `--profile PATH`
+for explicit setup/removal. `completion powershell` prints a standalone script;
+`--no-descriptions` omits descriptions. Bash, Zsh and Fish generation remain available.
+
 ## Image trust policy
 
 On a clean Windows profile, the first `copy` or non-dry-run `sync` that needs a
