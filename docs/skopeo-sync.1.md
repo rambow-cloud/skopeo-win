@@ -5,7 +5,7 @@ skopeo\-sync - Synchronize images between registry repositories and local direct
 
 
 ## SYNOPSIS
-**skopeo-win sync** [*options*] --src _transport_ --dest _transport_ _source_ _destination_
+**skopeo sync** [*options*] --src _transport_ --dest _transport_ _source_ _destination_
 
 ## DESCRIPTION
 Synchronize images between registry repositories and local directories. Synchronization is achieved by copying all the images found at _source_ to _destination_ - useful when synchronizing a local container registry mirror or for populating registries running inside of air-gapped environments.
@@ -43,7 +43,7 @@ Path of the primary registry credentials file. On Windows, the default is
 `$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
 or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo-win login` to manage the credentials.
+Use `skopeo login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -190,16 +190,16 @@ The password to access the destination registry.
 Preview or export a single tag in PowerShell:
 
 ```powershell
-skopeo-win sync --dry-run --src docker --dest dir docker.io/library/nginx:latest .\mirror
-skopeo-win sync --src docker --dest dir docker.io/library/nginx:latest .\mirror
+skopeo sync --dry-run --src docker --dest dir docker.io/library/nginx:latest .\mirror
+skopeo sync --src docker --dest dir docker.io/library/nginx:latest .\mirror
 ```
 
 Windows exports encode `nginx:latest` as `~skopeo~nginx%3alatest`. Keep names
 unchanged. To restore the mirror, select a policy that trusts its local source:
 
 ```powershell
-skopeo-win login registry.example.com
-skopeo-win --policy .\policy.json sync --src dir --dest docker .\mirror registry.example.com/team
+skopeo login registry.example.com
+skopeo --policy .\policy.json sync --src dir --dest docker .\mirror registry.example.com/team
 ```
 
 To select several images, save this as `sync.yml`:
@@ -212,7 +212,7 @@ docker.io:
 ```
 
 ```powershell
-skopeo-win sync --src yaml --dest dir .\sync.yml .\mirror-selected
+skopeo sync --src yaml --dest dir .\sync.yml .\mirror-selected
 ```
 
 Omitting a tag selects all repository tags. Use `--scoped` to retain source

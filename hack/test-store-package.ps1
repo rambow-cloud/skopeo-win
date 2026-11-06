@@ -77,7 +77,7 @@ foreach ($arch in @("x64", "arm64")) {
     Assert-Equal $application.GetAttribute("Subsystem", $desktopNamespace) "console" "Missing console subsystem"
     Assert-Equal $application.GetAttribute("SupportsMultipleInstances", $desktopNamespace) "true" "Concurrent CLI invocations must be supported"
     $aliases = @($application.Extensions.Extension.AppExecutionAlias.ExecutionAlias | ForEach-Object { $_.Alias } | Sort-Object)
-    Assert-Equal ($aliases -join ',') "skopeo-win.exe,skopeo.exe" "Wrong command aliases"
+    Assert-Equal ($aliases -join ',') "skopeo.exe" "Wrong command alias"
     Assert-Equal $application.Extensions.Extension.Executable "skopeo.exe" "Alias targets the wrong executable"
     Assert-Equal $application.Extensions.Extension.EntryPoint "Windows.FullTrustApplication" "Wrong alias entry point"
     $capabilities = @($manifest.Package.Capabilities.Capability | ForEach-Object { $_.Name })
@@ -132,7 +132,7 @@ try {
     Assert-Equal $launcherProcess.ExitCode 0 "Store launcher failed"
     Assert-Equal $launcherError.GetAwaiter().GetResult() "" "Unexpected Store launcher error"
     $text = $launcherOutput.GetAwaiter().GetResult()
-    if (-not $text.Contains("skopeo-win $Version") -or -not $text.Contains("skopeo-win --help") -or
+    if (-not $text.Contains("skopeo $Version") -or -not $text.Contains("skopeo --help") -or
         -not $text.Contains("Press Enter to close this window")) {
         throw "Store launcher did not display its version, terminal usage and close instructions"
     }

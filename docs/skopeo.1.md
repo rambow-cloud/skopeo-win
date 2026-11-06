@@ -2,13 +2,13 @@
 % Jhon Honce
 % August 2016
 ## NAME
-skopeo-win -- Command line utility used to interact with local and remote container images and container image registries
+skopeo -- Command line utility used to interact with local and remote container images and container image registries
 
 ## SYNOPSIS
 **skopeo-win** [_global options_] _command_ [_command options_]
 
 ## DESCRIPTION
-`skopeo-win` inspects, copies and synchronizes images between registries, archives
+`skopeo` inspects, copies and synchronizes images between registries, archives
 and local directories. It also supports registry authentication, image signing
 and verification, format conversion and registry manifest deletion.
 
@@ -24,7 +24,7 @@ Most commands refer to container images, using a _transport_`:`_details_ format.
 
   **docker://**_docker-reference_
   An image in a registry implementing the "Docker Registry HTTP API V2".
-  Credentials are typically managed using `skopeo-win login`;
+  Credentials are typically managed using `skopeo login`;
   see **containers-auth.json**(5) for more details about the credential search mechanism.
 
   **docker-archive:**_path_[**:**_docker-reference_]
@@ -127,7 +127,7 @@ Print the version number
 | [skopeo-sync(1)](skopeo-sync.1.md)| Synchronize images between registry repositories and local directories.                |
 
 ## EXIT STATUS
-`skopeo-win` exits with status 0 on success, non-zero on error. Running without
+`skopeo` exits with status 0 on success, non-zero on error. Running without
 a command prints help and exits successfully.
 
 Details about the exit statuses:

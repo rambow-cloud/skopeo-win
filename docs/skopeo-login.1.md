@@ -4,11 +4,11 @@
 skopeo\-login - Login to a container registry.
 
 ## SYNOPSIS
-**skopeo-win login** [*options*] _registry_
+**skopeo login** [*options*] _registry_
 
 ## DESCRIPTION
-**skopeo-win login** logs into a specified registry server with the correct username
-and password. **skopeo-win login** reads in the username and password from STDIN.
+**skopeo login** logs into a specified registry server with the correct username
+and password. **skopeo login** reads in the username and password from STDIN.
 The username and password can also be set using the **username** and **password** flags.
 The path of the credentials file can be specified by the user by setting the **authfile**
 flag.
@@ -67,13 +67,13 @@ Write more detailed information to stdout
 Login with an interactive password prompt; no password is placed in the command:
 
 ```powershell
-skopeo-win login registry.example.com
-skopeo-win login --authfile .\auth.json registry.example.com
-skopeo-win login --cert-dir .\certs registry.example.com
+skopeo login registry.example.com
+skopeo login --authfile .\auth.json registry.example.com
+skopeo login --cert-dir .\certs registry.example.com
 ```
 
 For automation, pipe a secret supplied by your credential provider to
-`skopeo-win login --username USER --password-stdin registry.example.com`.
+`skopeo login --username USER --password-stdin registry.example.com`.
 
 ## SEE ALSO
 skopeo(1), skopeo-logout(1), containers-auth.json(5), containers-registries.conf(5), containers-certs.d.5.md

@@ -4,7 +4,7 @@
 skopeo\-delete - Mark the _image-name_ for later deletion by the registry's garbage collector.
 
 ## SYNOPSIS
-**skopeo-win delete** [*options*] _image-name_
+**skopeo delete** [*options*] _image-name_
 
 ## DESCRIPTION
 
@@ -29,7 +29,7 @@ Path of the primary registry credentials file. On Windows, the default is
 `$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
 or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo-win login` to manage the credentials.
+Use `skopeo login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -88,7 +88,7 @@ The password to access the registry.
 Delete a manifest from a registry where you have deletion permission:
 
 ```powershell
-skopeo-win delete docker://registry.example.com/team/nginx:old
+skopeo delete docker://registry.example.com/team/nginx:old
 ```
 
 This can affect other tags pointing to the same manifest, as described above.

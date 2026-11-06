@@ -4,7 +4,7 @@
 skopeo\-list\-tags - List image names in a transport-specific collection of images.
 
 ## SYNOPSIS
-**skopeo-win list-tags** [*options*] _source-image_
+**skopeo list-tags** [*options*] _source-image_
 
 Return a list of tags from _source-image_ in a registry or a local docker-archive file.
 
@@ -20,7 +20,7 @@ Path of the updated registry credentials file. On Windows, the default is
 `$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
 or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo-win login` to manage the credentials.
+Use `skopeo login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -89,9 +89,9 @@ This commands refers to repositories using a _transport_`:`_details_ format. The
 ## EXAMPLES
 
 ```powershell
-skopeo-win list-tags docker://docker.io/library/nginx
-(skopeo-win list-tags docker://docker.io/library/nginx | ConvertFrom-Json).Tags
-skopeo-win list-tags 'docker-archive:.\nginx.tar'
+skopeo list-tags docker://docker.io/library/nginx
+(skopeo list-tags docker://docker.io/library/nginx | ConvertFrom-Json).Tags
+skopeo list-tags 'docker-archive:.\nginx.tar'
 ```
 
 ## SEE ALSO

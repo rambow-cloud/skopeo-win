@@ -219,7 +219,7 @@ func TestPowerShellTabExpansion(t *testing.T) {
 				t.Fatal(err)
 			}
 			// Quotes, spaces and metacharacters in executable paths remain literal.
-			binary := filepath.Join(c.root, "\u5de5\u5177 tool space ' $; [] folder", "skopeo-win.exe")
+			binary := filepath.Join(c.root, "\u5de5\u5177 tool space ' $; [] folder", "skopeo.exe")
 			write(t, binary, read(t, executable))
 			profileIndex := 0
 			if shell == "powershell.exe" {
@@ -227,18 +227,19 @@ func TestPowerShellTabExpansion(t *testing.T) {
 			}
 			profile := completionProfilePaths(c)[profileIndex]
 			lines := []struct{ line, want string }{
-				{"skopeo-win ins", "inspect"},
-				{"skopeo-win completion --st", "--status"},
+				{"skopeo ins", "inspect"},
+				{"skopeo.exe ins", "inspect"},
+				{"skopeo completion --st", "--status"},
 				{"skopeo copy --dest-t", "--dest-tls-verify"},
-				{"skopeo-win inspect --override-os li", "linux"},
-				{"skopeo-win inspect --override-arch=arm", "--override-arch=arm64"},
-				{"skopeo-win copy --multi-arch in", "index-only"},
-				{"skopeo-win copy --multi-arch=linux/amd64,wi", "windows/arm64"},
+				{"skopeo inspect --override-os li", "linux"},
+				{"skopeo inspect --override-arch=arm", "--override-arch=arm64"},
+				{"skopeo copy --multi-arch in", "index-only"},
+				{"skopeo copy --multi-arch=linux/amd64,wi", "windows/arm64"},
 				{"skopeo copy -f o", "oci"},
-				{"skopeo-win sync --src y", "yaml"},
-				{"skopeo-win copy doc", "docker:"},
+				{"skopeo sync --src y", "yaml"},
+				{"skopeo copy doc", "docker:"},
 				{"& '" + strings.ReplaceAll(binary, "'", "''") + "' ins", "inspect"},
-				{"skopeo-win --tmpdir 'a; $b $(throw ''literal'')' ins", "inspect"},
+				{"skopeo --tmpdir 'a; $b $(throw ''literal'')' ins", "inspect"},
 			}
 			payload := []string{}
 			for _, tc := range lines {
@@ -268,7 +269,7 @@ foreach ($line in $lines) {
     $results += ,@($matches | ForEach-Object { $_.CompletionText.Trim() })
 }
 $sentinel = Join-Path $env:COMPLETION_ROOT 'injected.txt'
-$malicious = 'skopeo-win --tmpdir "$(Set-Content -LiteralPath ''' + $sentinel.Replace("'","''") + ''' owned)" ins'
+$malicious = 'skopeo --tmpdir "$(Set-Content -LiteralPath ''' + $sentinel.Replace("'","''") + ''' owned)" ins'
 $null = [Management.Automation.CommandCompletion]::CompleteInput($malicious, $malicious.Length, $null)
 if (Test-Path -LiteralPath $sentinel) { throw 'Completion executed an argument expression' }
 if ($profileBefore -ne [Convert]::ToBase64String([IO.File]::ReadAllBytes($env:COMPLETION_PROFILE))) { throw 'Tab completion changed the profile' }
@@ -286,7 +287,6 @@ ConvertTo-Json -InputObject @($results) -Compress -Depth 10
 			aliasDirectory := filepath.Join(c.root, "aliases")
 			setCLIEnv(&c, "PATH", aliasDirectory+string(os.PathListSeparator)+os.Getenv("PATH"))
 			write(t, filepath.Join(aliasDirectory, "skopeo.exe"), read(t, executable))
-			write(t, filepath.Join(aliasDirectory, "skopeo-win.exe"), read(t, executable))
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
 			cmd := exec.CommandContext(ctx, path, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script)

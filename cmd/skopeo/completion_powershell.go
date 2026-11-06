@@ -25,7 +25,7 @@ const completionStart = "\r\n# >>> skopeo-win PowerShell completion >>>\r\n"
 const completionEnd = "# <<< skopeo-win PowerShell completion <<<\r\n"
 
 func powerShellScript(noDescriptions bool) ([]byte, error) {
-	names := []string{"skopeo", "skopeo.exe", "skopeo-win", "skopeo-win.exe", "skopeo-windows-amd64.exe", "skopeo-windows-arm64.exe"}
+	names := []string{"skopeo", "skopeo.exe", "skopeo-windows-amd64.exe", "skopeo-windows-arm64.exe"}
 	if executable, err := os.Executable(); err == nil {
 		name := filepath.Base(executable)
 		names = append(names, name, strings.TrimSuffix(name, filepath.Ext(name)))
