@@ -51,28 +51,30 @@ When no policy exists, the first copy or non-dry-run sync creates
 embedded policy is used in memory. Existing or explicitly selected policies take
 precedence; invalid existing policies are reported rather than replaced.
 
-The default accepts unsigned images only from `docker.io/library`,
-`mcr.microsoft.com`, `registry.k8s.io`, `quay.io/prometheus` and `ghcr.io/fluxcd`.
-This is namespace-based acceptance, not publisher-signature verification;
-HTTPS verification remains enabled.
-
-Private registries, other namespaces and local image sources need a policy
-that trusts the selected source. Select it with `--policy .\policy.json` before
-the command, or set `$env:CONTAINERS_POLICY_JSON`. For example, a policy for one
-private registry can contain:
+The default matches [upstream Skopeo](https://github.com/podman-container-tools/skopeo/blob/main/default-policy.json):
+accept unsigned images from every registry and local source, including ECR Public.
+TLS verification and registry authentication remain enabled. The generated policy is:
 
 ```json
 {
-  "default": [{"type": "reject"}],
+  "default": [{"type": "insecureAcceptAnything"}],
   "transports": {
-    "docker": {"registry.example.com": [{"type": "insecureAcceptAnything"}]}
+    "docker-daemon": {"": [{"type": "insecureAcceptAnything"}]}
   }
 }
 ```
 
-For local sources, configure the relevant transport and absolute Windows path.
-See the [policy format](https://github.com/containers/image/blob/main/docs/containers-policy.json.5.md)
-for signed-image policies. `--insecure-policy` explicitly accepts all sources.
+To adopt this default instead of an older generated user policy, back up that
+file, then run copy/sync again:
+
+```powershell
+Rename-Item "$env:APPDATA\containers\policy.json" policy.json.bak
+```
+
+Existing policies are never automatically replaced. To restrict sources or
+require signatures, select your own policy with `--policy .\policy.json` or
+`$env:CONTAINERS_POLICY_JSON`; see the [policy format](https://github.com/containers/image/blob/main/docs/containers-policy.json.5.md).
+`--require-signed` still rejects unsigned images.
 
 ## PowerShell completion
 

@@ -1,12 +1,8 @@
 {
-  "default": [{"type": "reject"}],
+  "default": [{"type": "insecureAcceptAnything"}],
   "transports": {
-    "docker": {
-      "docker.io/library": [{"type": "insecureAcceptAnything"}],
-      "mcr.microsoft.com": [{"type": "insecureAcceptAnything"}],
-      "registry.k8s.io": [{"type": "insecureAcceptAnything"}],
-      "quay.io/prometheus": [{"type": "insecureAcceptAnything"}],
-      "ghcr.io/fluxcd": [{"type": "insecureAcceptAnything"}]
+    "docker-daemon": {
+      "": [{"type": "insecureAcceptAnything"}]
     }
   }
 }

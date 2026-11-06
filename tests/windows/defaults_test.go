@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -86,42 +87,79 @@ func TestFirstRunDefaultPolicyAndLinuxPlatform(t *testing.T) {
 	getIndex(t, c.run(t, "", "inspect", "--raw", allPlatforms), 4)
 }
 
-func TestDefaultPolicyNamespaceBoundaries(t *testing.T) {
-	for _, tc := range []struct {
-		namespace string
-		allowed   bool
-	}{
-		{"docker.io/library", true}, {"mcr.microsoft.com", true}, {"registry.k8s.io", true},
-		{"quay.io/prometheus", true}, {"ghcr.io/fluxcd", true},
-		{"docker.io/community", false}, {"docker.io/library-evil", false},
-		{"mcr.microsoft.com.evil.invalid", false}, {"registry.k8s.io.evil.invalid", false},
-		{"quay.io/prometheus-evil", false}, {"ghcr.io/community", false},
+func TestDefaultPolicyAcceptsRegistrySources(t *testing.T) {
+	for _, namespace := range []string{
+		"docker.io/library", "docker.io/community", "ghcr.io/community",
+		"public.ecr.aws/example", "registry.example.com/team",
 	} {
-		t.Run(tc.namespace, func(t *testing.T) {
+		t.Run(namespace, func(t *testing.T) {
 			c, _, host := publicFixture(t)
-			ref := publicMirror(t, c, tc.namespace, host, true)
-			want := "rejected"
-			if tc.allowed {
-				want = ""
-			}
-			c.run(t, want, "copy", ref, "dir:"+filepath.Join(c.root, "copy"))
+			ref := publicMirror(t, c, namespace, host, true)
+			c.run(t, "", "copy", ref, "dir:"+filepath.Join(c.root, "copy"))
 		})
 	}
 	t.Run("require-signed still rejects unsigned public images", func(t *testing.T) {
 		c, ref, _ := publicFixture(t)
 		c.run(t, "signature", "--require-signed", "copy", ref, "dir:"+filepath.Join(c.root, "signed-only"))
 	})
-	t.Run("allowlisted namespaces still require valid TLS", func(t *testing.T) {
+	t.Run("default acceptance still requires valid TLS", func(t *testing.T) {
 		c := newCLI(t)
 		s := httptest.NewTLSServer(registry.New(registry.Logger(log.New(io.Discard, "", 0))))
 		t.Cleanup(s.Close)
-		ref := publicMirror(t, c, "docker.io/library", strings.TrimPrefix(s.URL, "https://"), false)
+		ref := publicMirror(t, c, "public.ecr.aws/example", strings.TrimPrefix(s.URL, "https://"), false)
 		c.defaultPolicy = true
 		c.run(t, "certificate", "copy", ref, "dir:"+filepath.Join(c.root, "tls-rejected"))
 	})
+	t.Run("default acceptance still requires registry authentication", func(t *testing.T) {
+		c, f := newCLI(t), makeFixture(t)
+		c.defaultPolicy = true
+		backend := registry.New(registry.Logger(log.New(io.Discard, "", 0)))
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, password, ok := r.BasicAuth()
+			if !ok || user != "fixture-user" || password != "fixture-password" {
+				w.Header().Set("WWW-Authenticate", `Basic realm="integration"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			backend.ServeHTTP(w, r)
+		}))
+		defer server.Close()
+		host := strings.TrimPrefix(server.URL, "http://")
+		ref := "docker://" + host + "/team/demo:stable"
+		c.run(t, "", "copy", "--all", "--dest-tls-verify=false", "--dest-creds=fixture-user:fixture-password", "dir:"+f.dir, ref)
+		c.run(t, "authentication required", "copy", "--src-tls-verify=false", ref, "dir:"+filepath.Join(c.root, "no-auth"))
+		c.run(t, "", "copy", "--src-tls-verify=false", "--src-creds=fixture-user:fixture-password", ref, "dir:"+filepath.Join(c.root, "authenticated"))
+	})
+}
+
+func TestDefaultPolicyAcceptsLocalSources(t *testing.T) {
+	c := newCLI(t)
+	c.defaultPolicy = true
+	c.imageOS = ""
+	f := makePlatformFixture(t, "linux", "windows")
+	oci := "oci:" + filepath.Join(c.root, "layout") + ":stable"
+	c.run(t, "", "copy", "--all", "dir:"+f.dir, oci)
+	getIndex(t, c.run(t, "", "inspect", "--raw", oci), 4)
+	archive := "docker-archive:./image.tar"
+	c.run(t, "", "copy", oci, archive+":demo:stable")
+	assertImagePlatform(t, c, archive, "linux", runtime.GOARCH)
+	local := "dir:" + filepath.Join(c.root, "restored")
+	c.run(t, "", "copy", archive, local)
+	assertImagePlatform(t, c, local, "linux", runtime.GOARCH)
 }
 
 func TestDefaultPolicyPreservesConfiguredPolicies(t *testing.T) {
+	t.Run("legacy generated namespace policy remains authoritative", func(t *testing.T) {
+		c, _, host := publicFixture(t)
+		data := []byte(`{"default":[{"type":"reject"}],"transports":{"docker":{"docker.io/library":[{"type":"insecureAcceptAnything"}]}}}`)
+		path := filepath.Join(c.root, "containers", "policy.json")
+		write(t, path, data)
+		ref := publicMirror(t, c, "public.ecr.aws/example", host, true)
+		c.run(t, "rejected", "copy", ref, "dir:"+filepath.Join(c.root, "copy"))
+		if !bytes.Equal(read(t, path), data) {
+			t.Fatal("legacy policy was replaced")
+		}
+	})
 	for _, tc := range []struct{ name, data, want string }{
 		{"rejecting user policy", `{"default":[{"type":"reject"}]}`, "rejected"},
 		{"malformed user policy", `{"default":`, "invalid policy"},
@@ -175,8 +213,9 @@ func TestEmbeddedPolicyWhenAppDataIsUnavailable(t *testing.T) {
 	setCLIEnv(&c, "APPDATA", appData)
 	c.run(t, "", "copy", ref, "dir:"+filepath.Join(c.root, "copy"))
 	assertNoDefaultPolicy(t, appData)
-	ref = publicMirror(t, c, "docker.io/community", host, true)
-	c.run(t, "rejected", "copy", ref, "dir:"+filepath.Join(c.root, "blocked"))
+	ref = publicMirror(t, c, "public.ecr.aws/example", host, true)
+	c.run(t, "", "copy", ref, "dir:"+filepath.Join(c.root, "ecr-copy"))
+	assertNoDefaultPolicy(t, appData)
 }
 
 func TestDefaultPolicyDryRunDoesNotWrite(t *testing.T) {

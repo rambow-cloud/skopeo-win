@@ -74,9 +74,10 @@ Enable PowerShell Tab completion once, then restart PowerShell:
 skopeo completion
 ```
 
-Images default to **Linux** and your computer's native **architecture**. Copy/sync
-creates a default policy for selected public namespaces when no policy exists;
-private registries and local image sources need an explicit trust policy. See the
+Images default to **Linux** and your computer's native **architecture**. When no
+policy exists, copy/sync uses the upstream-style default accepting unsigned
+images from all registries and local sources. TLS verification and registry
+authentication still apply; existing policies take precedence. See the
 [Windows guide](WINDOWS.md) for paths, OCI layouts, sync, policies and completion.
 Packaged features follow the [release notes](docs/release-notes.md).
 

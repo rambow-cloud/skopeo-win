@@ -275,8 +275,9 @@ skopeo login registry.example.com
 skopeo copy --all docker://docker.io/library/nginx:latest docker://registry.example.com/team/nginx:latest
 ```
 
-Private registries and local image sources require an appropriate source trust
-policy; see the [Windows guide](../WINDOWS.md#image-trust-policy). Use
+The default policy accepts unsigned images from registries and local sources.
+Use an explicit policy to restrict sources or require signatures; see the
+[Windows guide](../WINDOWS.md#image-trust-policy). Use
 `skopeo copy --help` for signing/encryption and advanced copy options.
 
 ## SEE ALSO
