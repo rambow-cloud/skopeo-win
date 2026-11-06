@@ -195,11 +195,11 @@ skopeo sync --src docker --dest dir docker.io/library/nginx:latest .\mirror
 ```
 
 Windows exports encode `nginx:latest` as `~skopeo~nginx%3alatest`. Keep names
-unchanged. To restore the mirror, select a policy that trusts its local source:
+unchanged when restoring the mirror:
 
 ```powershell
 skopeo login registry.example.com
-skopeo --policy .\policy.json sync --src dir --dest docker .\mirror registry.example.com/team
+skopeo sync --src dir --dest docker .\mirror registry.example.com/team
 ```
 
 To select several images, save this as `sync.yml`:
@@ -216,8 +216,9 @@ skopeo sync --src yaml --dest dir .\sync.yml .\mirror-selected
 ```
 
 Omitting a tag selects all repository tags. Use `--scoped` to retain source
-registry/repository namespaces, as described above. Private sources and local
-restores need an appropriate [trust policy](../WINDOWS.md#image-trust-policy).
+registry/repository namespaces, as described above. The default policy accepts
+unsigned sources; use a custom [trust policy](../WINDOWS.md#image-trust-policy)
+to enforce your own source/signature requirements.
 
 ## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-policy.json(5), containers-transports(5)

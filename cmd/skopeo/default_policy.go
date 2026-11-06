@@ -16,8 +16,8 @@ import (
 	"go.podman.io/storage/pkg/configfile"
 )
 
-// This allowlist permits unsigned images only from the listed namespaces.
-// It does not establish cryptographic publisher identity or disable TLS checks.
+// Match the upstream permissive default for all image sources.
+// Configured policies remain authoritative; TLS and authentication are unchanged.
 //
 //go:embed windows-policy.json
 var defaultWindowsPolicy []byte

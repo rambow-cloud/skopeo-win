@@ -139,7 +139,7 @@ Details about the exit statuses:
 ## FILES
 
 - `$env:APPDATA\containers\policy.json`: Windows user trust policy. When none
-  exists, copy/sync uses the built-in public-namespace policy; see the
+  exists, copy/sync uses the upstream-style permissive policy; see the
   [policy defaults](../WINDOWS.md#image-trust-policy).
 - `$env:USERPROFILE\.config\containers\auth.json`: default registry credentials.
 - Use `--registries.d .\registries.d` for an explicit registry configuration directory.
