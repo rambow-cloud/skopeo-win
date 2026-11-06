@@ -140,7 +140,7 @@ func TestDefaultPolicyAcceptsLocalSources(t *testing.T) {
 	oci := "oci:" + filepath.Join(c.root, "layout") + ":stable"
 	c.run(t, "", "copy", "--all", "dir:"+f.dir, oci)
 	getIndex(t, c.run(t, "", "inspect", "--raw", oci), 4)
-	archive := "docker-archive:" + filepath.Join(c.root, "image.tar")
+	archive := "docker-archive:./image.tar"
 	c.run(t, "", "copy", oci, archive+":demo:stable")
 	assertImagePlatform(t, c, archive, "linux", runtime.GOARCH)
 	local := "dir:" + filepath.Join(c.root, "restored")
