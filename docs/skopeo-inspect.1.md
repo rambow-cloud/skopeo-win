@@ -4,7 +4,7 @@
 skopeo\-inspect - Return low-level information about _image-name_ in a registry.
 
 ## SYNOPSIS
-**skopeo inspect** [*options*] _image-name_
+**skopeo-win inspect** [*options*] _image-name_
 
 ## DESCRIPTION
 
@@ -21,10 +21,11 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+Path of the primary registry credentials file. On Windows, the default is
+`$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
+or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo login` to manage the credentials.
+Use `skopeo-win login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -103,99 +104,11 @@ Algorithm to use for computing manifest digest (sha256, sha512); defaults to alg
 
 ## EXAMPLES
 
-To review information for the image fedora from the docker.io registry:
-```console
-$ skopeo inspect docker://docker.io/fedora
-
-{
-    "Name": "docker.io/library/fedora",
-    "Digest": "sha256:f99efcddc4dd6736d8a88cc1ab6722098ec1d77dbf7aed9a7a514fc997ca08e0",
-    "RepoTags": [
-        "20",
-        "21",
-        "..."
-    ],
-    "Created": "2022-11-16T07:26:42.618327645Z",
-    "DockerVersion": "20.10.12",
-    "Labels": {
-        "maintainer": "Clement Verna \u003ccverna@fedoraproject.org\u003e"
-    },
-    "Architecture": "amd64",
-    "Os": "linux",
-    "Layers": [
-        "sha256:cb8b1ed77979b894115a983f391465651aa7eb3edd036be4b508eea47271eb93"
-    ],
-    "LayersData": [
-        {
-            "MIMEType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
-            "Digest": "sha256:cb8b1ed77979b894115a983f391465651aa7eb3edd036be4b508eea47271eb93",
-            "Size": 65990920,
-            "Annotations": null
-        }
-    ],
-    "Env": [
-        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "DISTTAG=f37container",
-        "FGC=f37",
-        "FBR=f37"
-    ]
-}
-```
-
-To inspect python from the docker.io registry and not show the available tags:
-```console
-$ skopeo inspect --no-tags docker://docker.io/library/python
-{
-    "Name": "docker.io/library/python",
-    "Digest": "sha256:10fc14aa6ae69f69e4c953cffd9b0964843d8c163950491d2138af891377bc1d",
-    "RepoTags": [],
-    "Created": "2022-11-16T06:55:28.566254104Z",
-    "DockerVersion": "20.10.12",
-    "Labels": null,
-    "Architecture": "amd64",
-    "Os": "linux",
-    "Layers": [
-        "sha256:a8ca11554fce00d9177da2d76307bdc06df7faeb84529755c648ac4886192ed1",
-        "sha256:e4e46864aba2e62ba7c75965e4aa33ec856ee1b1074dda6b478101c577b63abd",
-        "..."
-    ],
-    "LayersData": [
-        {
-            "MIMEType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
-            "Digest": "sha256:a8ca11554fce00d9177da2d76307bdc06df7faeb84529755c648ac4886192ed1",
-            "Size": 55038615,
-            "Annotations": null
-        },
-        {
-            "MIMEType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
-            "Digest": "sha256:e4e46864aba2e62ba7c75965e4aa33ec856ee1b1074dda6b478101c577b63abd",
-            "Size": 5164893,
-            "Annotations": null
-        },
-        "..."
-    ],
-    "Env": [
-        "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "LANG=C.UTF-8",
-        "...",
-    ]
-}
-```
-
-```console
-$ /bin/skopeo inspect --config docker://registry.fedoraproject.org/fedora --format "{{ .Architecture }}"
-amd64
-```
-
-```console
-$ /bin/skopeo inspect --format '{{ .Env }}' docker://registry.access.redhat.com/ubi8
-[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin container=oci]
-```
-
-To get the digest using a specific algorithm:
-```console
-$ skopeo inspect --manifest-digest=sha512 docker://docker.io/library/alpine:latest --format "Digest: {{.Digest}}"
-Digest: sha512:5acb33fb56a7791bf0c69d5b19a1c70272148e4107be5261d57305d14e9509792bbca53e5277c456181ecfa1c20ad8427f9b8ba46868020584a819de1128dbd2
+```powershell
+skopeo-win inspect docker://docker.io/library/nginx:latest
+skopeo-win inspect --no-tags --format '{{.Digest}}' docker://docker.io/library/nginx:latest
+skopeo-win inspect --config docker://docker.io/library/nginx:latest | ConvertFrom-Json
+skopeo-win inspect --manifest-digest sha512 --format '{{.Digest}}' docker://docker.io/library/nginx:latest
 ```
 
 ## SEE ALSO

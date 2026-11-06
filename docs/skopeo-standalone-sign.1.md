@@ -4,10 +4,10 @@
 skopeo\-standalone-sign - Debugging tool - Sign an image locally without uploading.
 
 ## SYNOPSIS
-**skopeo standalone-sign** [*options*] _manifest_ _docker-reference_ _key-fingerprint_ **--output**|**-o** _signature_
+**skopeo-win standalone-sign** [*options*] _manifest_ _docker-reference_ _key-fingerprint_ **--output**|**-o** _signature_
 
 ## DESCRIPTION
-This is primarily a debugging tool, useful for special cases, and usually should not be a part of your normal operational workflow; use `skopeo copy --sign-by` instead to publish and sign an image in one step.
+This is primarily a debugging tool, useful for special cases, and usually should not be a part of your normal operational workflow; use `skopeo-win copy --sign-by` instead to publish and sign an image in one step.
 
   _manifest_ Path to a file containing the image manifest
 
@@ -33,9 +33,10 @@ The passphare to use when signing with the key ID from `--sign-by`. Only the fir
 
 ## EXAMPLES
 
-```console
-$ skopeo standalone-sign busybox-manifest.json registry.example.com/example/busybox 1D8230F6CDB6A06716E414C1DB72F2188BB46CC8 --output busybox.signature
-$
+With an already configured OpenPGP signing key, replace the fingerprint below:
+
+```powershell
+skopeo-win standalone-sign .\manifest.json registry.example.com/team/nginx 1D8230F6CDB6A06716E414C1DB72F2188BB46CC8 --output .\image.signature
 ```
 
 ## NOTES

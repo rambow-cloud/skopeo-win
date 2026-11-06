@@ -4,11 +4,11 @@
 skopeo\-login - Login to a container registry.
 
 ## SYNOPSIS
-**skopeo login** [*options*] _registry_
+**skopeo-win login** [*options*] _registry_
 
 ## DESCRIPTION
-**skopeo login** logs into a specified registry server with the correct username
-and password. **skopeo login** reads in the username and password from STDIN.
+**skopeo-win login** logs into a specified registry server with the correct username
+and password. **skopeo-win login** reads in the username and password from STDIN.
 The username and password can also be set using the **username** and **password** flags.
 The path of the credentials file can be specified by the user by setting the **authfile**
 flag.
@@ -31,8 +31,9 @@ Username for registry
 
 **--authfile**=*path*
 
-Path of the managed registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the default on other platforms.
+Path of the managed registry credentials file. On Windows, the default is
+`$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
+or `$env:REGISTRY_AUTH_FILE`.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -47,7 +48,7 @@ Return the logged-in user for the registry. Return error if no login is found.
 **--cert-dir**=*path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+On Windows, select a certificate directory explicitly, for example `--cert-dir .\certs`.
 
 **--help**, **-h**
 
@@ -63,44 +64,16 @@ Write more detailed information to stdout
 
 ## EXAMPLES
 
-```console
-$ skopeo login docker.io
-Username: testuser
-Password:
-Login Succeeded!
+Login with an interactive password prompt; no password is placed in the command:
+
+```powershell
+skopeo-win login registry.example.com
+skopeo-win login --authfile .\auth.json registry.example.com
+skopeo-win login --cert-dir .\certs registry.example.com
 ```
 
-```console
-$ skopeo login -u testuser -p testpassword localhost:5000
-Login Succeeded!
-```
-
-```console
-$ skopeo login --authfile authdir/myauths.json docker.io
-Username: testuser
-Password:
-Login Succeeded!
-```
-
-```console
-$ skopeo login --tls-verify=false -u test -p test localhost:5000
-Login Succeeded!
-```
-
-```console
-$ skopeo login --cert-dir /etc/containers/certs.d/ -u foo -p bar localhost:5000
-Login Succeeded!
-```
-
-```console
-$ skopeo login -u testuser  --password-stdin < testpassword.txt docker.io
-Login Succeeded!
-```
-
-```console
-$ echo $testpassword | skopeo login -u testuser --password-stdin docker.io
-Login Succeeded!
-```
+For automation, pipe a secret supplied by your credential provider to
+`skopeo-win login --username USER --password-stdin registry.example.com`.
 
 ## SEE ALSO
 skopeo(1), skopeo-logout(1), containers-auth.json(5), containers-registries.conf(5), containers-certs.d.5.md

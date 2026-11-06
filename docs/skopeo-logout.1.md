@@ -4,10 +4,10 @@
 skopeo\-logout - Logout of a container registry.
 
 ## SYNOPSIS
-**skopeo logout** [*options*] _registry_
+**skopeo-win logout** [*options*] _registry_
 
 ## DESCRIPTION
-**skopeo logout** logs out of a specified registry server by deleting the cached credentials
+**skopeo-win logout** logs out of a specified registry server by deleting the cached credentials
 stored in the **auth.json** file. The path of the credentials file can be overridden by the user by setting the **authfile** flag.
 All the cached credentials can be removed by setting the **all** flag.
 
@@ -17,8 +17,9 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile**=*path*
 
-Path of the managed registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the default on other platforms.
+Path of the managed registry credentials file. On Windows, the default is
+`$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
+or `$env:REGISTRY_AUTH_FILE`.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -40,19 +41,10 @@ Require HTTPS and verify certificates when talking to the container registry or 
 
 ## EXAMPLES
 
-```console
-$ skopeo logout docker.io
-Remove login credentials for docker.io
-```
-
-```console
-$ skopeo logout --authfile authdir/myauths.json docker.io
-Remove login credentials for docker.io
-```
-
-```console
-$ skopeo logout --all
-Remove login credentials for all registries
+```powershell
+skopeo-win logout registry.example.com
+skopeo-win logout --authfile .\auth.json registry.example.com
+skopeo-win logout --all
 ```
 
 ## SEE ALSO

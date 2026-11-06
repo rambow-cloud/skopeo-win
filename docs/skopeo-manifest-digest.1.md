@@ -4,7 +4,7 @@
 skopeo\-manifest\-digest - Compute a manifest digest for a manifest-file and write it to standard output.
 
 ## SYNOPSIS
-**skopeo manifest-digest** _manifest-file_
+**skopeo-win manifest-digest** _manifest-file_
 
 ## DESCRIPTION
 
@@ -18,9 +18,8 @@ Print usage statement
 
 ## EXAMPLES
 
-```console
-$ skopeo manifest-digest manifest.json
-sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6
+```powershell
+skopeo-win manifest-digest .\manifest.json
 ```
 
 ## SEE ALSO

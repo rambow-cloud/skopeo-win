@@ -4,7 +4,7 @@
 skopeo\-delete - Mark the _image-name_ for later deletion by the registry's garbage collector.
 
 ## SYNOPSIS
-**skopeo delete** [*options*] _image-name_
+**skopeo-win delete** [*options*] _image-name_
 
 ## DESCRIPTION
 
@@ -16,18 +16,8 @@ The effect of this is registry-specific; many registries don’t support this op
 **WARNING**: If _image-name_ contains a tag (but not a digest), in the current version of Skopeo this resolves the tag into a digest, and then deletes the manifest by digest, as described above (possibly deleting all tags pointing to that manifest, not just the provided tag). This behavior may change in the future.
 
 
-When using the github.com/distribution/distribution registry server:
-To release the allocated disk space, you must login to the container registry server and execute the container registry garbage collector. E.g.,
-
-```
-/usr/bin/registry garbage-collect /etc/docker-distribution/registry/config.yml
-```
-Note: sometimes the config.yml is stored in /etc/docker/registry/config.yml
-
-If you are running the container registry inside of a container you would execute something like:
-```
-$ docker exec -it registry /usr/bin/registry garbage-collect /etc/docker-distribution/registry/config.yml
-```
+Reclaiming storage requires registry-side garbage collection, managed by the
+registry administrator. It is not a local Windows cleanup command.
 
 ## OPTIONS
 
@@ -35,10 +25,11 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+Path of the primary registry credentials file. On Windows, the default is
+`$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
+or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo login` to manage the credentials.
+Use `skopeo-win login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -94,12 +85,13 @@ The password to access the registry.
 
 ## EXAMPLES
 
-Mark image example/pause for deletion from the registry.example.com registry:
-```console
-$ skopeo delete docker://registry.example.com/example/pause:latest
-```
-See above for additional details on using the command **delete**.
+Delete a manifest from a registry where you have deletion permission:
 
+```powershell
+skopeo-win delete docker://registry.example.com/team/nginx:old
+```
+
+This can affect other tags pointing to the same manifest, as described above.
 
 ## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5)

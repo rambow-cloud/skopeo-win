@@ -4,7 +4,7 @@
 skopeo\-copy - Copy an image (manifest, filesystem layers, signatures) from one location to another.
 
 ## SYNOPSIS
-**skopeo copy** [*options*] _source-image_ _destination-image_
+**skopeo-win copy** [*options*] _source-image_ _destination-image_
 
 ## DESCRIPTION
 Copy an image (manifest, filesystem layers, signatures) from one location to another.
@@ -34,10 +34,11 @@ the images in the list, and the list itself.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+Path of the primary registry credentials file. On Windows, the default is
+`$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
+or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo login` to manage the credentials.
+Use `skopeo-win login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -105,7 +106,7 @@ Remove manifest-list signatures while preserving per-instance signatures. Mutual
 
 With a platform list in **--multi-arch**, omit unselected platforms from the destination manifest list. The default retains their entries and creates a sparse list. Stripping changes the list digest; use **--remove-list-signatures** to preserve instance signatures, or **--remove-signatures** to remove all signatures. Signed lists cannot be modified without explicit signature removal. **--preserve-digests** prevents changes to the list.
 
-Example: `skopeo copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures docker://registry.example.com/team/image:latest docker://mirror.example.com/team/image:latest`
+Example: `skopeo-win copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures docker://registry.example.com/team/image:latest docker://mirror.example.com/team/image:latest`
 
 **--download-foreign-layers**
 
@@ -197,11 +198,11 @@ Require HTTPS and verify certificates when talking to container destination regi
 
 **--src-daemon-host** _host_
 
-Copy from docker daemon at _host_. If _host_ starts with `tcp://`, HTTPS is enabled by default. To use plain HTTP, use the form `http://` (default is `unix:///var/run/docker.sock`).
+Copy from docker daemon at _host_. If _host_ starts with `tcp://`, HTTPS is enabled by default. To use plain HTTP, use the form `http://`. On Windows, select an explicit reachable daemon endpoint; the Linux Unix-socket default is not a Windows path.
 
 **--dest-daemon-host** _host_
 
-Copy to docker daemon at _host_. If _host_ starts with `tcp://`, HTTPS is enabled by default. To use plain HTTP, use the form `http://` (default is `unix:///var/run/docker.sock`).
+Copy to docker daemon at _host_. If _host_ starts with `tcp://`, HTTPS is enabled by default. To use plain HTTP, use the form `http://`. On Windows, select an explicit reachable daemon endpoint; the Linux Unix-socket default is not a Windows path.
 
 **--dest-compress-format** _format_
 
@@ -259,67 +260,24 @@ Maximum number of image layers to be copied (pulled/pushed) simultaneously. Not 
 
 ## EXAMPLES
 
-To just copy an image from one registry to another:
-```console
-$ skopeo copy docker://quay.io/skopeo/stable:latest docker://registry.example.com/skopeo:latest
+Run these commands in PowerShell. Public-source examples use Docker Official Images.
+
+```powershell
+# Save a Docker archive or separate image files.
+skopeo-win copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
+skopeo-win copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
+
+# Create a named OCI layout using an absolute Windows path.
+skopeo-win copy docker://docker.io/library/nginx:latest "oci:$PWD\nginx-oci:latest"
+
+# Publish every platform to a registry you can write to.
+skopeo-win login registry.example.com
+skopeo-win copy --all docker://docker.io/library/nginx:latest docker://registry.example.com/team/nginx:latest
 ```
 
-To copy the layers of the docker.io busybox image to a local directory:
-```console
-$ mkdir -p /var/lib/images/busybox
-$ skopeo copy docker://busybox:latest dir:/var/lib/images/busybox
-$ ls /var/lib/images/busybox/*
-  /tmp/busybox/2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749.tar
-  /tmp/busybox/manifest.json
-  /tmp/busybox/8ddc19f16526912237dd8af81971d5e4dd0587907234be2b83e249518d5b673f.tar
-```
-
-To create an archive consumable by `docker load` (but note that using a registry is almost always more efficient):
-```console
-$ skopeo copy docker://busybox:latest docker-archive:archive-file.tar:busybox:latest
-```
-
-To copy and sign an image:
-```console
-$ skopeo copy --sign-by dev@example.com containers-storage:example/busybox:streaming docker://example/busybox:gold
-```
-
-To copy only specific platforms from a multi-architecture image (creates a sparse manifest list):
-```console
-$ skopeo copy --multi-arch=linux/amd64,linux/arm64 docker://quay.io/skopeo/stable:latest docker://registry.example.com/skopeo:latest
-```
-
-To encrypt an image:
-```console
-$ skopeo copy docker://docker.io/library/nginx:1.17.8 oci:local_nginx:1.17.8
-
-$ openssl genrsa -out private.key 1024
-$ openssl rsa -in private.key -pubout > public.key
-
-$ skopeo copy --encryption-key jwe:./public.key oci:local_nginx:1.17.8 oci:try-encrypt:encrypted
-```
-
-To decrypt an image:
-```console
-$ skopeo copy --decryption-key ./private.key oci:try-encrypt:encrypted oci:try-decrypt:decrypted
-```
-
-To copy encrypted image without decryption:
-```console
-$ skopeo copy oci:try-encrypt:encrypted oci:try-encrypt-copy:encrypted
-```
-
-To decrypt an image that requires more than one key:
-```console
-$ skopeo copy --decryption-key ./private1.key --decryption-key ./private2.key --decryption-key ./private3.key oci:try-encrypt:encrypted oci:try-decrypt:decrypted
-```
-
-Container images can also be partially encrypted by specifying the index of the layer. Layers are 0-indexed indices, with support for negative indexing. i.e. 0 is the first layer, -1 is the last layer.
-
-Let's say out of 3 layers that the image `docker.io/library/nginx:1.17.8` is made up of, we only want to encrypt the 2nd layer,
-```console
-$ skopeo copy --encryption-key jwe:./public.key --encrypt-layer 1 oci:local_nginx:1.17.8 oci:try-encrypt:encrypted
-```
+Private registries and local image sources require an appropriate source trust
+policy; see the [Windows guide](../WINDOWS.md#image-trust-policy). Use
+`skopeo-win copy --help` for signing/encryption and advanced copy options.
 
 ## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-policy.json(5), containers-transports(5), containers-signature(5)

@@ -5,7 +5,7 @@ skopeo\-sync - Synchronize images between registry repositories and local direct
 
 
 ## SYNOPSIS
-**skopeo sync** [*options*] --src _transport_ --dest _transport_ _source_ _destination_
+**skopeo-win sync** [*options*] --src _transport_ --dest _transport_ _source_ _destination_
 
 ## DESCRIPTION
 Synchronize images between registry repositories and local directories. Synchronization is achieved by copying all the images found at _source_ to _destination_ - useful when synchronizing a local container registry mirror or for populating registries running inside of air-gapped environments.
@@ -16,13 +16,13 @@ One of the problems of prefixing a destination with its transport is that, the r
 Available _source_ transports:
  - _docker_ (i.e. `--src docker`): _source_ is a repository hosted on a container registry (e.g.: `registry.example.com/busybox`).
  If no image tag is specified, skopeo sync copies all the tags found in that repository.
- - _dir_ (i.e. `--src dir`): _source_ is a local directory path (e.g.: `/media/usb/`). Refer to skopeo(1) **dir:**_path_ for the local image format.
+ - _dir_ (i.e. `--src dir`): _source_ is a local directory path (e.g.: `.\mirror`). Refer to skopeo(1) **dir:**_path_ for the local image format.
  - _yaml_ (i.e. `--src yaml`): _source_ is local YAML file path.
  The YAML file should specify the list of images copied from different container registries (local directories are not supported). Refer to EXAMPLES for the file format.
 
 Available _destination_ transports:
  - _docker_ (i.e. `--dest docker`): _destination_ is a container registry (e.g.: `my-registry.local.lan`).
- - _dir_ (i.e. `--dest dir`): _destination_ is a local directory path (e.g.: `/media/usb/`).
+ - _dir_ (i.e. `--dest dir`): _destination_ is a local directory path (e.g.: `.\mirror`).
  One directory per source 'image:tag' is created for each copied image.
 
 When the `--scoped` option is specified, images are prefixed with the source image path so that multiple images with the same
@@ -39,10 +39,11 @@ the images in the list, and the list itself.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+Path of the primary registry credentials file. On Windows, the default is
+`$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
+or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo login` to manage the credentials.
+Use `skopeo-win login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -186,125 +187,37 @@ The password to access the destination registry.
 
 ## EXAMPLES
 
-### Synchronizing to a local directory
-```console
-$ skopeo sync --src docker --dest dir registry.example.com/busybox /media/usb
-```
-Images are located at:
-```
-/media/usb/busybox:1-glibc
-/media/usb/busybox:1-musl
-/media/usb/busybox:1-ubuntu
-...
-/media/usb/busybox:latest
+Preview or export a single tag in PowerShell:
+
+```powershell
+skopeo-win sync --dry-run --src docker --dest dir docker.io/library/nginx:latest .\mirror
+skopeo-win sync --src docker --dest dir docker.io/library/nginx:latest .\mirror
 ```
 
-### Synchronizing to a container registry from local
-Images are located at:
-```
-/media/usb/busybox:1-glibc
-```
-Sync run
-```console
-$ skopeo sync --src dir --dest docker /media/usb/busybox:1-glibc my-registry.local.lan/test/
-```
-Destination registry content:
-```
-REPO                                 TAGS
-my-registry.local.lan/test/busybox   1-glibc
+Windows exports encode `nginx:latest` as `~skopeo~nginx%3alatest`. Keep names
+unchanged. To restore the mirror, select a policy that trusts its local source:
+
+```powershell
+skopeo-win login registry.example.com
+skopeo-win --policy .\policy.json sync --src dir --dest docker .\mirror registry.example.com/team
 ```
 
-### Synchronizing to a local directory, scoped
-```console
-$ skopeo sync --src docker --dest dir --scoped registry.example.com/busybox /media/usb
-```
-Images are located at:
-```
-/media/usb/registry.example.com/busybox:1-glibc
-/media/usb/registry.example.com/busybox:1-musl
-/media/usb/registry.example.com/busybox:1-ubuntu
-...
-/media/usb/registry.example.com/busybox:latest
-```
-
-### Synchronizing to a container registry
-```console
-$ skopeo sync --src docker --dest docker registry.example.com/busybox my-registry.local.lan
-```
-Destination registry content:
-```
-REPO                         TAGS
-registry.local.lan/busybox   1-glibc, 1-musl, 1-ubuntu, ..., latest
-```
-
-### Synchronizing to a container registry keeping the repository
-```console
-$ skopeo sync --src docker --dest docker registry.example.com/repo/busybox my-registry.local.lan/repo
-```
-Destination registry content:
-```
-REPO                              TAGS
-registry.local.lan/repo/busybox   1-glibc, 1-musl, 1-ubuntu, ..., latest
-```
-
-### Synchronizing to a container registry with tag suffix
-```console
-$ skopeo sync --src docker --dest docker --append-suffix '-mirror' registry.example.com/busybox my-registry.local.lan
-```
-Destination registry content:
-```
-REPO                         TAGS
-registry.local.lan/busybox   1-glibc-mirror, 1-musl-mirror, 1-ubuntu-mirror, ..., latest-mirror
-```
-
-### YAML file content (used _source_ for `**--src yaml**`)
+To select several images, save this as `sync.yml`:
 
 ```yaml
-registry.example.com:
-    images:
-        busybox: []
-        redis:
-            - "1.0"
-            - "2.0"
-            - "sha256:0000000000000000000000000000000011111111111111111111111111111111"
-    images-by-tag-regex:
-        nginx: ^1\.13\.[12]-alpine-perl$
-    images-by-semver:
-        alpine: ">= 3.12.0"
-    credentials:
-        username: john
-        password: this is a secret
-    tls-verify: true
-    cert-dir: /home/john/certs
-quay.io:
-    tls-verify: false
-    images:
-        coreos/etcd:
-            - latest
+docker.io:
+  images:
+    library/nginx: ["latest"]
+    library/redis: ["latest"]
 ```
-If the yaml filename is `sync.yml`, sync run:
-```console
-$ skopeo sync --src yaml --dest docker sync.yml my-registry.local.lan/repo/
+
+```powershell
+skopeo-win sync --src yaml --dest dir .\sync.yml .\mirror-selected
 ```
-This will copy the following images:
-- Repository `registry.example.com/busybox`: all images, as no tags are specified.
-- Repository `registry.example.com/redis`: images tagged "1.0" and "2.0" along with image with digest "sha256:0000000000000000000000000000000011111111111111111111111111111111".
-- Repository `registry.example.com/nginx`: images tagged "1.13.1-alpine-perl" and "1.13.2-alpine-perl".
-- Repository `quay.io/coreos/etcd`: images tagged "latest".
-- Repository `registry.example.com/alpine`: all images with tags match the semantic version constraint ">= 3.12.0" ("3.12.0, "3.12.1", ... ,"4.0.0", ...)
 
-The full list of possible semantic version comparisons can be found in the
-upstream library's documentation:
-https://github.com/Masterminds/semver/tree/v3.2.0#basic-comparisons.
-
-Version ordering and precedence is understood as defined here:
-https://semver.org/#spec-item-11.
-
-For the registry `registry.example.com`, the "john"/"this is a secret" credentials are used, with server TLS certificates located at `/home/john/certs`.
-
-TLS verification is normally enabled, and it can be disabled setting `tls-verify` to `false`.
-In the above example, TLS verification is enabled for `registry.example.com`, while is
-disabled for `quay.io`.
+Omitting a tag selects all repository tags. Use `--scoped` to retain source
+registry/repository namespaces, as described above. Private sources and local
+restores need an appropriate [trust policy](../WINDOWS.md#image-trust-policy).
 
 ## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-policy.json(5), containers-transports(5)

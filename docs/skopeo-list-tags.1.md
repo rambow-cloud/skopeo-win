@@ -4,7 +4,7 @@
 skopeo\-list\-tags - List image names in a transport-specific collection of images.
 
 ## SYNOPSIS
-**skopeo list-tags** [*options*] _source-image_
+**skopeo-win list-tags** [*options*] _source-image_
 
 Return a list of tags from _source-image_ in a registry or a local docker-archive file.
 
@@ -16,10 +16,11 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile** _path_
 
-Path of the updated registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+Path of the updated registry credentials file. On Windows, the default is
+`$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
+or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo login` to manage the credentials.
+Use `skopeo-win login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -87,91 +88,11 @@ This commands refers to repositories using a _transport_`:`_details_ format. The
 
 ## EXAMPLES
 
-### Docker Transport
-To get the list of tags in the "fedora" repository from the docker.io registry (the repository name expands to "library/fedora" per docker transport canonical form):
-```console
-$ skopeo list-tags docker://docker.io/fedora
-{
-    "Repository": "docker.io/library/fedora",
-    "Tags": [
-        "20",
-        "21",
-        "22",
-        "23",
-        "24",
-        "25",
-        "26-modular",
-        "26",
-        "27",
-        "28",
-        "29",
-        "30",
-        "31",
-        "32",
-        "branched",
-        "heisenbug",
-        "latest",
-        "modular",
-        "rawhide"
-    ]
-}
-
+```powershell
+skopeo-win list-tags docker://docker.io/library/nginx
+(skopeo-win list-tags docker://docker.io/library/nginx | ConvertFrom-Json).Tags
+skopeo-win list-tags 'docker-archive:.\nginx.tar'
 ```
-
-To list the tags in a local host docker/distribution registry on port 5000, in this case for the "fedora" repository:
-
-```console
-$ skopeo list-tags docker://localhost:5000/fedora
-{
-    "Repository": "localhost:5000/fedora",
-    "Tags": [
-        "latest",
-        "30",
-        "31"
-    ]
-}
-
-```
-
-### Docker-archive Transport
-
-To list the tags in a local docker-archive file:
-
-```console
-$ skopeo list-tags docker-archive:/tmp/busybox.tar.gz
-{
-    "Tags": [
-        "busybox:1.28.3"
-    ]
-}
-```
-
-Also supports more than one tags in an archive:
-
-```console
-$ skopeo list-tags docker-archive:/tmp/docker-two-images.tar.gz
-{
-    "Tags": [
-        "example.com/empty:latest",
-        "example.com/empty/but:different"
-    ]
-}
-```
-
-Will include a source-index entry for each untagged image:
-
-```console
-$ skopeo list-tags docker-archive:/tmp/four-tags-with-an-untag.tar
-{
-    "Tags": [
-        "image1:tag1",
-        "image2:tag2",
-        "@2",
-        "image4:tag4"
-    ]
-}
-```
-
 
 ## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-transports(1)
