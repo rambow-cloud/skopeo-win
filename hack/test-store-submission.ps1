@@ -53,3 +53,25 @@ foreach ($version in @('1.0.7.0', '1.0.6.0')) {
     if (-not $rejected) { throw 'Non-increasing package version was accepted' }
 }
 Write-Host 'Verified Store identity, pending-draft protection, monotonic versions, package transitions and metadata preservation.'
+
+$published = $draft | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
+$published['id'] = '123'
+$published['status'] = 'Published'
+$published['friendlyName'] = 'Submission 1'
+$draft['friendlyName'] = 'Submission 2'
+Assert-StoreUnchangedDraft $draft $published '456'
+foreach ($change in @(@{targetPublishMode='Immediate'}, @{notesForCertification='Edited'}, @{unexpectedSetting=$true}, @{status='CommitStarted'}, @{id='789'})) {
+    $candidate = $draft.Clone()
+    foreach ($key in $change.Keys) { $candidate[$key] = $change[$key] }
+    $rejected = $false
+    try { Assert-StoreUnchangedDraft $candidate $published '456' } catch { $rejected = $true }
+    if (-not $rejected) { throw 'Changed or non-editable draft was accepted' }
+}
+foreach ($body in @("- **Feature one:** Details.`n- **Feature two:** More details.", ('Long notes ' * 2000))) {
+    $notes = Get-StoreReleaseNotes '1.0.8' $body
+    if ($notes.Length -gt 1500 -or $notes -notmatch '/tag/v1.0.8' -or $notes -notmatch 'Version 1.0.8') { throw 'Store release note bound or version failed' }
+}
+$rejected = $false
+try { $null = Get-StoreReleaseNotes '1.0.8' '' } catch { $rejected = $true }
+if (-not $rejected) { throw 'Missing release notes were accepted' }
+Write-Host 'Verified unchanged-draft recovery, unknown-field protection and version-specific bounded release notes.'

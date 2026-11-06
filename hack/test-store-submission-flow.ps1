@@ -7,6 +7,8 @@ $bundle = Join-Path $root 'skopeo-win-1.0.8.0.msixbundle'
 [IO.File]::WriteAllText($bundle, 'Synthetic package bytes; package validation belongs to the build workflow.')
 $hash = (Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText("$bundle.sha256", "$hash  skopeo-win-1.0.8.0.msixbundle`n")
+$notesFile = Join-Path $root 'release-notes.txt'
+[IO.File]::WriteAllText($notesFile, "- **Windows archive paths:** Fixed drive paths.`n- **PowerShell Tab completion:** Complete commands.")
 $saved = @{}
 foreach ($name in @('AZURE_AD_TENANT_ID','AZURE_AD_APPLICATION_CLIENT_ID','AZURE_AD_APPLICATION_SECRET','GITHUB_ACTIONS')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name)
@@ -17,6 +19,14 @@ $env:AZURE_AD_APPLICATION_SECRET = 'synthetic-client-secret'
 $env:GITHUB_ACTIONS = 'false'
 $storeModel = @{calls = [Collections.Generic.List[string]]::new(); scenario = ''; uploaded = $false}
 $api = 'https://manage.devcenter.microsoft.com/v1.0/my/applications/9MT5QPKZDHGD'
+function New-ModelSubmission([string] $Id, [string] $Status) {
+    return @{
+        id=$Id;status=$Status;friendlyName="Submission $Id";fileUploadUrl='https://synthetic.blob.core.windows.net/upload?sig=synthetic-sas'
+        applicationPackages=@(@{version='1.0.7.0';fileName='old.msix';fileStatus='Uploaded';id='package-1'})
+        listings=@{'en-us'=@{baseListing=@{title='Keep title';description='Keep description';releaseNotes='Old notes'}}}
+        pricing=@{priceId='Free'};notesForCertification='Keep certification explanation'
+    }
+}
 
 # These command replacements exist only in this test script's scope. Every
 # request is handled by the model; unknown URLs and methods fail closed.
@@ -35,10 +45,21 @@ function Invoke-RestMethod {
         "Get $api" {
             if ($storeModel.scenario -eq 'api failure') { throw 'synthetic-sensitive-response-body' }
             $app = @{id='9MT5QPKZDHGD';packageIdentityName='RambowCloud.skopeo-win';lastPublishedApplicationSubmission=@{id='123'}}
-            if ($storeModel.scenario -eq 'pending') { $app.pendingApplicationSubmission = @{id='999'} }
+            if ($storeModel.scenario -like 'pending*') { $app.pendingApplicationSubmission = @{id='456'} }
             return $app
         }
-        "Get $api/submissions/123" { return @{applicationPackages=@(@{version='1.0.7.0'})} }
+        "Get $api/submissions/123" { return New-ModelSubmission '123' 'Published' }
+        "Get $api/submissions/456" {
+            $draft = New-ModelSubmission '456' 'PendingCommit'
+            switch ($storeModel.scenario) {
+                'pending changed listing' { $draft.listings['en-us'].baseListing.description = 'Unpublished edits' }
+                'pending changed pricing' { $draft.pricing.priceId = 'Tier2' }
+                'pending newer package' { $draft.applicationPackages[0].version = '1.0.9.0' }
+                'pending upload' { $draft.applicationPackages[0].fileStatus = 'PendingUpload' }
+                'pending certification' { $draft.status = 'Certification' }
+            }
+            return $draft
+        }
         "Post $api/submissions" {
             if ($ContentType -cne 'application/json' -or $null -ne $Body) { throw 'Store draft creation must be an empty JSON request' }
             if ($storeModel.scenario -eq 'create failure') {
@@ -48,18 +69,16 @@ function Invoke-RestMethod {
                 $failure.ErrorDetails = [Management.Automation.ErrorDetails]::new('{"code":"InvalidRequest","message":"Use JSON; synthetic-client-secret; Bearer synthetic-access-token; https://synthetic.blob.core.windows.net/?sig=synthetic-sas"}')
                 throw $failure
             }
-            return @{
-                id='456';status='PendingCommit';fileUploadUrl='https://synthetic.blob.core.windows.net/upload?sig=synthetic-sas'
-                applicationPackages=@(@{version='1.0.7.0';fileName='old.msix';fileStatus='Uploaded'})
-                listings=@{'en-us'=@{baseListing=@{title='Keep title';description='Keep description';releaseNotes='Old notes'}}}
-                pricing=@{priceId='Free'};notesForCertification='Keep certification explanation'
-            }
+            return New-ModelSubmission '456' 'PendingCommit'
         }
         "Put $api/submissions/456" {
             $update = $Body | ConvertFrom-Json -AsHashtable
             if ($update.listings['en-us'].baseListing.title -cne 'Keep title' -or
                 $update.notesForCertification -cne 'Keep certification explanation' -or
-                $update.applicationPackages[1].fileName -cne 'skopeo-win-1.0.8.0.msixbundle') { throw 'Metadata preservation failed' }
+                $update.applicationPackages[1].fileName -cne 'skopeo-win-1.0.8.0.msixbundle' -or
+                $update.listings['en-us'].baseListing.releaseNotes -notmatch 'Windows archive paths' -or
+                $update.listings['en-us'].baseListing.releaseNotes -notmatch 'PowerShell Tab completion' -or
+                $update.listings['en-us'].baseListing.releaseNotes -notmatch '/tag/v1.0.8') { throw 'Metadata preservation or release notes failed' }
             return @{}
         }
         "Post $api/submissions/456/commit" {
@@ -87,21 +106,21 @@ function Invoke-WebRequest {
 }
 
 try {
-    foreach ($case in @('success','pending','upload failure','api failure','create failure')) {
+    foreach ($case in @('success','pending unchanged','pending changed listing','pending changed pricing','pending newer package','pending upload','pending certification','upload failure','api failure','create failure')) {
         $storeModel.scenario = $case
         $storeModel.calls.Clear()
         $storeModel.uploaded = $false
         $out = Join-Path $root ($case -replace ' ', '-')
         $caught = $null
-        try { & (Join-Path $PSScriptRoot 'submit-store.ps1') -Bundle $bundle -Version '1.0.8' -OutputDirectory $out }
+        try { & (Join-Path $PSScriptRoot 'submit-store.ps1') -Bundle $bundle -Version '1.0.8' -ReleaseNotesFile $notesFile -OutputDirectory $out }
         catch { $caught = $_.Exception.Message }
         $commits = @($storeModel.calls | Where-Object { $_ -eq "Post $api/submissions/456/commit" }).Count
-        if ($case -eq 'success') {
+        if ($case -in @('success', 'pending unchanged')) {
             $report = Get-Content -Raw (Join-Path $out 'submission.json') | ConvertFrom-Json
             if ($caught -or $commits -ne 1 -or $report.status -cne 'PreProcessing' -or $report.submissionId -cne '456') { throw "Submission model failed: $caught" }
         } else {
             if (-not $caught -or $commits -ne 0 -or $caught -match 'synthetic-sensitive') { throw "Unsafe failure handling for $case" }
-            if ($case -eq 'pending' -and @($storeModel.calls | Where-Object {$_ -eq "Post $api/submissions"}).Count -ne 0) { throw 'Existing draft was replaced' }
+            if ($case -like 'pending*' -and $storeModel.uploaded) { throw 'Modified draft was uploaded' }
             if ($case -eq 'create failure') {
                 $report = Get-Content -Raw (Join-Path $out 'submission.json') | ConvertFrom-Json
                 if ($storeModel.uploaded -or $report.submissionId -or $report.status -cne 'NotStarted' -or
@@ -109,6 +128,10 @@ try {
                     $report.diagnostic -match 'synthetic|https?://|::|[\r\n]' -or $caught -match 'synthetic') { throw 'Draft creation failure was not safely retained' }
             }
         }
+        if ($case -like 'pending*' -and @($storeModel.calls | Where-Object {$_ -eq "Post $api/submissions"}).Count -ne 0) { throw 'Existing draft was replaced' }
+        if (@($storeModel.calls | Where-Object {$_ -like 'Delete *'}).Count -ne 0) { throw 'A draft was deleted' }
+        if ($case -like 'pending*' -and $case -ne 'pending unchanged' -and
+            @($storeModel.calls | Where-Object {$_ -like 'Put *'}).Count -ne 0) { throw 'Modified draft metadata was overwritten' }
         Write-Host "Verified offline Store transaction: $case."
     }
 } finally {
