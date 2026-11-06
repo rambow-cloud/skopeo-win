@@ -67,7 +67,7 @@ func newCLI(t *testing.T) cli {
 	for _, item := range os.Environ() {
 		key, _, _ := strings.Cut(item, "=")
 		switch strings.ToUpper(key) {
-		case "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "CONTAINERS_POLICY_JSON", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "REGISTRY_AUTH_FILE", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY":
+		case "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "CONTAINERS_POLICY_JSON", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "REGISTRY_AUTH_FILE", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "SKOPEO_POWERSHELL_COMPLETION", "SKOPEO_POWERSHELL_PROFILES":
 			continue
 		}
 		env = append(env, item)
@@ -76,6 +76,8 @@ func newCLI(t *testing.T) cli {
 		env = append(env, key+"="+root)
 	}
 	env = append(env, "ProgramData="+filepath.Join(root, "system"), "REGISTRY_AUTH_FILE="+filepath.Join(root, "auth.json"), "NO_PROXY=127.0.0.1,localhost,::1")
+	env = append(env, "SKOPEO_POWERSHELL_COMPLETION=off")
+	env = append(env, "SKOPEO_POWERSHELL_PROFILES="+filepath.Join(root, "PowerShell", "profile.ps1")+";"+filepath.Join(root, "WindowsPowerShell", "profile.ps1"))
 	// Existing fixtures contain Windows images; select that platform explicitly.
 	return cli{root: root, env: env, imageOS: "windows"}
 }
