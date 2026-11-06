@@ -43,19 +43,12 @@ func powerShellScript(noDescriptions bool) ([]byte, error) {
 	return []byte(strings.ReplaceAll(script, "@@REQUEST@@", request)), nil
 }
 
-func powerShellCompletionCommand(defaultInstall bool) *cobra.Command {
-	name, short := "powershell", "Generate a PowerShell completion script"
-	long := "Generate a safe PowerShell 5.1/7 completion script. Use --install to configure the current user's profile, --status to check setup, or --uninstall to remove it. Restart PowerShell after setup."
-	if defaultInstall {
-		name = "completion"
-		short = "Enable PowerShell completion in the current user's profile"
-		long = "Configure PowerShell 5.1/7 Tab completion in the current user's current console-host profile. Missing profiles are created. Restart PowerShell after setup. Use --profile $PROFILE for a custom host. Ordinary commands never configure profiles. To generate a standalone script, use completion powershell."
-	}
-	var install, uninstall, status, noDescriptions, showPath bool
+func completionCommand() *cobra.Command {
+	var uninstall, status, noDescriptions, showPath bool
 	var profiles []string
 	ps := &cobra.Command{
-		Use: name, Short: short, Args: cobra.NoArgs,
-		Long: long,
+		Use: "completion", Short: "Enable PowerShell completion in the current user's profile", Args: cobra.NoArgs,
+		Long: "Configure PowerShell 5.1/7 Tab completion in the current user's current console-host profile. Missing profiles are created. Restart PowerShell after setup. Use --profile $PROFILE for a custom host. Ordinary commands never configure profiles.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showPath {
 				if len(profiles) != 0 {
@@ -64,16 +57,6 @@ func powerShellCompletionCommand(defaultInstall bool) *cobra.Command {
 				path, _, err := completionFiles()
 				if err == nil {
 					_, err = fmt.Fprintln(cmd.OutOrStdout(), path)
-				}
-				return err
-			}
-			if !defaultInstall && !install && !uninstall && !status {
-				if len(profiles) != 0 {
-					return errors.New("--profile requires --install, --uninstall or --status")
-				}
-				script, err := powerShellScript(noDescriptions)
-				if err == nil {
-					_, err = cmd.OutOrStdout().Write(script)
 				}
 				return err
 			}
@@ -114,38 +97,13 @@ func powerShellCompletionCommand(defaultInstall bool) *cobra.Command {
 			return nil
 		},
 	}
-	ps.Flags().BoolVar(&install, "install", false, "configure PowerShell completion in current-user profiles")
 	ps.Flags().BoolVar(&uninstall, "uninstall", false, "remove managed profile blocks and disable PowerShell completion")
 	ps.Flags().BoolVar(&status, "status", false, "show PowerShell profile activation status")
 	ps.Flags().BoolVar(&noDescriptions, "no-descriptions", false, "disable completion descriptions")
 	ps.Flags().StringArrayVar(&profiles, "profile", nil, "explicit profile path (repeatable; default: current user's current console-host profile)")
 	ps.Flags().BoolVar(&showPath, "path", false, "print the installed completion script path for dot-sourcing")
-	ps.MarkFlagsMutuallyExclusive("install", "uninstall", "status", "path")
+	ps.MarkFlagsMutuallyExclusive("uninstall", "status", "path")
 	return ps
-}
-
-func completionCommand(root *cobra.Command) *cobra.Command {
-	parent := powerShellCompletionCommand(true)
-	parent.AddCommand(powerShellCompletionCommand(false))
-	for _, shell := range []string{"bash", "zsh", "fish"} {
-		var noDescriptions bool
-		command := &cobra.Command{Use: shell, Short: "Generate " + shell + " completion", Args: cobra.NoArgs, RunE: func(c *cobra.Command, args []string) error {
-			switch shell {
-			case "bash":
-				return root.GenBashCompletionV2(c.OutOrStdout(), !noDescriptions)
-			case "fish":
-				return root.GenFishCompletion(c.OutOrStdout(), !noDescriptions)
-			default:
-				if noDescriptions {
-					return root.GenZshCompletionNoDesc(c.OutOrStdout())
-				}
-				return root.GenZshCompletion(c.OutOrStdout())
-			}
-		}}
-		command.Flags().BoolVar(&noDescriptions, "no-descriptions", false, "disable completion descriptions")
-		parent.AddCommand(command)
-	}
-	return parent
 }
 
 func completionFiles() (string, string, error) {

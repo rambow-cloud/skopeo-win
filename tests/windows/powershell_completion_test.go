@@ -99,14 +99,14 @@ func TestPowerShellCompletionPreservesOpaqueProfileAndRejectsAmbiguity(t *testin
 	profiles := completionProfilePaths(c)
 	legacy := []byte{'#', ' ', 0x81, 0x82, '\r', '\n'}
 	write(t, profiles[0], legacy)
-	c.executeExact(t, "", nil, "completion", "powershell", "--install")
-	c.executeExact(t, "", nil, "completion", "powershell", "--uninstall")
+	c.executeExact(t, "", nil, "completion")
+	c.executeExact(t, "", nil, "completion", "--uninstall")
 	if !bytes.Equal(legacy, read(t, profiles[0])) {
 		t.Fatal("legacy profile bytes were changed")
 	}
 	ambiguous := []byte("\r\n# >>> skopeo-win PowerShell completion >>>\r\n# unmatched marker\r\n")
 	write(t, profiles[0], ambiguous)
-	c.executeExact(t, "ambiguous", nil, "completion", "powershell", "--install")
+	c.executeExact(t, "ambiguous", nil, "completion")
 	if !bytes.Equal(ambiguous, read(t, profiles[0])) {
 		t.Fatal("ambiguous profile was overwritten")
 	}
@@ -120,7 +120,7 @@ func TestPowerShellCompletionPreservesOpaqueProfileAndRejectsAmbiguity(t *testin
 	if err := os.Link(sentinel, profiles[0]); err != nil {
 		t.Fatal(err)
 	}
-	c.executeExact(t, "hard-linked", nil, "completion", "powershell", "--install")
+	c.executeExact(t, "hard-linked", nil, "completion")
 	if string(read(t, sentinel)) != "# unrelated sentinel\r\n" {
 		t.Fatal("a hard-linked user file was modified")
 	}
@@ -128,7 +128,7 @@ func TestPowerShellCompletionPreservesOpaqueProfileAndRejectsAmbiguity(t *testin
 	profiles = completionProfilePaths(c)
 	signed := []byte("# user profile\r\n# SIG # Begin signature block\r\n# signature\r\n# SIG # End signature block\r\n")
 	write(t, profiles[0], signed)
-	c.executeExact(t, "signed PowerShell profile", nil, "completion", "powershell", "--install")
+	c.executeExact(t, "signed PowerShell profile", nil, "completion")
 	if !bytes.Equal(signed, read(t, profiles[0])) {
 		t.Fatal("a signed profile was modified")
 	}
@@ -139,7 +139,7 @@ func TestPowerShellReadOnlyCommandsDoNotConfigureProfiles(t *testing.T) {
 	setCLIEnv(&c, "SKOPEO_POWERSHELL_COMPLETION", "on")
 	manifest := filepath.Join(c.root, "manifest.json")
 	write(t, manifest, []byte(`{"schemaVersion":2}`))
-	for _, args := range [][]string{nil, {"manifest-digest", manifest}, {"--version"}, {"completion", "--status"}, {"completion", "powershell"}, {"__complete", "inspect", "--override-os", "li"}} {
+	for _, args := range [][]string{nil, {"manifest-digest", manifest}, {"--version"}, {"completion", "--status"}, {"completion", "--path"}, {"__complete", "inspect", "--override-os", "li"}} {
 		c.executeExact(t, "", nil, args...)
 	}
 	c.executeExact(t, "must not be negative", nil, "--command-timeout=-1s")
@@ -181,10 +181,22 @@ func TestPowerShellCompletionHelp(t *testing.T) {
 			t.Fatalf("completion help is missing %q", want)
 		}
 	}
+	for _, obsolete := range []string{"Available Commands:", "[command]", "--install"} {
+		if bytes.Contains(help.stdout, []byte(obsolete)) {
+			t.Fatalf("PowerShell-only help still advertises %q", obsolete)
+		}
+	}
 	removed := c.executeExact(t, "autocomplete", nil, "autocomplete")
 	if removed.exitCode != 1 {
 		t.Fatal("removed autocomplete command must fail")
 	}
+	for _, shell := range []string{"bash", "zsh", "fish", "powershell"} {
+		removed := c.executeExact(t, shell, nil, "completion", shell)
+		if removed.exitCode != 1 {
+			t.Fatalf("removed %s subcommand must fail", shell)
+		}
+	}
+	c.executeExact(t, "unknown flag", nil, "completion", "--install")
 	for _, profile := range completionProfilePaths(c) {
 		if _, err := os.Stat(profile); !os.IsNotExist(err) {
 			t.Fatal("help or removed command configured a profile")
@@ -209,17 +221,6 @@ func TestPowerShellTabExpansion(t *testing.T) {
 			// Quotes, spaces and metacharacters in executable paths remain literal.
 			binary := filepath.Join(c.root, "\u5de5\u5177 tool space ' $; [] folder", "skopeo-win.exe")
 			write(t, binary, read(t, executable))
-			completion := filepath.Join(c.root, "completion.ps1")
-			r := c.executeExact(t, "", nil, "completion", "powershell")
-			if bytes.Contains(r.stdout, []byte("Invoke-Expression")) {
-				t.Fatal("completion evaluates command text")
-			}
-			write(t, completion, r.stdout)
-			for _, profile := range completionProfilePaths(c) {
-				if _, err := os.Stat(profile); !os.IsNotExist(err) {
-					t.Fatal("script generation wrote a profile")
-				}
-			}
 			profileIndex := 0
 			if shell == "powershell.exe" {
 				profileIndex = 1
@@ -227,6 +228,7 @@ func TestPowerShellTabExpansion(t *testing.T) {
 			profile := completionProfilePaths(c)[profileIndex]
 			lines := []struct{ line, want string }{
 				{"skopeo-win ins", "inspect"},
+				{"skopeo-win completion --st", "--status"},
 				{"skopeo copy --dest-t", "--dest-tls-verify"},
 				{"skopeo-win inspect --override-os li", "linux"},
 				{"skopeo-win inspect --override-arch=arm", "--override-arch=arm64"},
@@ -313,6 +315,10 @@ ConvertTo-Json -InputObject @($results) -Compress -Depth 10
 				}
 			}
 			assertNoDefaultPolicy(t, c.root)
+			installed := read(t, filepath.Join(c.root, "PowerShell", "SkopeoWin", "completion.ps1"))
+			if bytes.Contains(installed, []byte("Invoke-Expression")) {
+				t.Fatal("installed completion evaluates command text")
+			}
 			if !bytes.Contains(read(t, profile), []byte("skopeo-win PowerShell completion")) {
 				t.Fatal("explicit setup did not create the shell's profile")
 			}
