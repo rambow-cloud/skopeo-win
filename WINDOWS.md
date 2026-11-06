@@ -102,10 +102,9 @@ Uninstall disables profile loading; restart PowerShell to unload an already
 registered completer. Run `completion` again to re-enable it. Set
 `SKOPEO_POWERSHELL_COMPLETION=off` to suppress profile loading. Advanced hosts may
 set the semicolon-separated `SKOPEO_POWERSHELL_PROFILES` absolute path list, or use
-repeatable `--profile PATH` for explicit setup/removal. `completion powershell`
-prints a standalone script, and its legacy `--install`, `--status` and `--uninstall`
-controls remain available. `--no-descriptions` omits descriptions. Bash, Zsh and
-Fish generation remain available.
+repeatable `--profile PATH` for explicit setup/removal. `completion` is dedicated
+to PowerShell and has no shell subcommands. `--no-descriptions` omits completion
+descriptions; `--path` prints the installed script path without configuring profiles.
 
 ## Image trust policy
 

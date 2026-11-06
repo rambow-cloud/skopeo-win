@@ -104,7 +104,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	flag := commonFlag.OptionalBoolFlag(rootCommand.Flags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
 	flag.Hidden = true
 	rootCommand.AddCommand(
-		completionCommand(rootCommand),
+		completionCommand(),
 		copyCmd(&opts),
 		deleteCmd(&opts),
 		generateSigstoreKeyCmd(),
