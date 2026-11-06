@@ -44,16 +44,18 @@ func powerShellScript(noDescriptions bool) ([]byte, error) {
 }
 
 func powerShellCompletionCommand(defaultInstall bool) *cobra.Command {
-	name, short := "powershell", "Generate or configure PowerShell completion"
+	name, short := "powershell", "Generate a PowerShell completion script"
+	long := "Generate a safe PowerShell 5.1/7 completion script. Use --install to configure the current user's profile, --status to check setup, or --uninstall to remove it. Restart PowerShell after setup."
 	if defaultInstall {
-		name = "autocomplete"
-		short = "Enable PowerShell autocomplete in the current user's profile"
+		name = "completion"
+		short = "Enable PowerShell completion in the current user's profile"
+		long = "Configure PowerShell 5.1/7 Tab completion in the current user's current console-host profile. Missing profiles are created. Restart PowerShell after setup. Use --profile $PROFILE for a custom host. Ordinary commands never configure profiles. To generate a standalone script, use completion powershell."
 	}
 	var install, uninstall, status, noDescriptions, showPath bool
 	var profiles []string
 	ps := &cobra.Command{
 		Use: name, Short: short, Args: cobra.NoArgs,
-		Long: "Configure PowerShell 5.1/7 autocomplete in the current user's current console-host profile. Missing profiles are created. Restart PowerShell after setup. Use --profile $PROFILE for a custom host. Ordinary commands never configure profiles.",
+		Long: long,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showPath {
 				if len(profiles) != 0 {
@@ -88,7 +90,7 @@ func powerShellCompletionCommand(defaultInstall bool) *cobra.Command {
 				if disabledErr != nil && !errors.Is(disabledErr, os.ErrNotExist) {
 					return disabledErr
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "Profile activation disabled: %t\n", disabledErr == nil || completionEnvironmentDisabled())
+				fmt.Fprintf(cmd.OutOrStdout(), "PowerShell profile activation disabled: %t\n", disabledErr == nil || completionEnvironmentDisabled())
 				for _, profile := range selected {
 					data, err := os.ReadFile(profile)
 					if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -102,19 +104,19 @@ func powerShellCompletionCommand(defaultInstall bool) *cobra.Command {
 				return err
 			}
 			if uninstall {
-				fmt.Fprintln(cmd.OutOrStdout(), "PowerShell completion disabled. Open a new terminal to unload the existing completer.")
+				fmt.Fprintln(cmd.OutOrStdout(), "PowerShell completion disabled. Restart PowerShell to unload the existing completer.")
 			} else {
 				for _, profile := range selected {
-					fmt.Fprintf(cmd.OutOrStdout(), "PowerShell autocomplete configured: %s\n", profile)
+					fmt.Fprintf(cmd.OutOrStdout(), "PowerShell completion configured: %s\n", profile)
 				}
-				fmt.Fprintln(cmd.OutOrStdout(), "Restart PowerShell to enable autocomplete.")
+				fmt.Fprintln(cmd.OutOrStdout(), "Restart PowerShell to enable Tab completion.")
 			}
 			return nil
 		},
 	}
-	ps.Flags().BoolVar(&install, "install", false, "configure completion in current-user PowerShell profiles")
-	ps.Flags().BoolVar(&uninstall, "uninstall", false, "remove managed profile blocks and disable completion")
-	ps.Flags().BoolVar(&status, "status", false, "show profile activation status")
+	ps.Flags().BoolVar(&install, "install", false, "configure PowerShell completion in current-user profiles")
+	ps.Flags().BoolVar(&uninstall, "uninstall", false, "remove managed profile blocks and disable PowerShell completion")
+	ps.Flags().BoolVar(&status, "status", false, "show PowerShell profile activation status")
 	ps.Flags().BoolVar(&noDescriptions, "no-descriptions", false, "disable completion descriptions")
 	ps.Flags().StringArrayVar(&profiles, "profile", nil, "explicit profile path (repeatable; default: current user's current console-host profile)")
 	ps.Flags().BoolVar(&showPath, "path", false, "print the installed completion script path for dot-sourcing")
@@ -123,7 +125,7 @@ func powerShellCompletionCommand(defaultInstall bool) *cobra.Command {
 }
 
 func completionCommand(root *cobra.Command) *cobra.Command {
-	parent := &cobra.Command{Use: "completion", Short: "Generate shell completion scripts", Args: cobra.NoArgs}
+	parent := powerShellCompletionCommand(true)
 	parent.AddCommand(powerShellCompletionCommand(false))
 	for _, shell := range []string{"bash", "zsh", "fish"} {
 		var noDescriptions bool
