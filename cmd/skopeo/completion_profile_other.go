@@ -3,13 +3,22 @@
 package main
 
 import (
-	"errors"
 	"os"
+	"path/filepath"
 )
 
-func completionAutoSupported() bool                          { return false }
-func automaticPowerShellProfiles(profiles []string) []string { return nil }
 func defaultPowerShellProfiles() ([]string, error) {
-	return nil, errors.New("automatic PowerShell profile discovery is supported on Windows; use --profile for an explicit path")
+	config, err := os.UserConfigDir()
+	if err != nil {
+		return nil, err
+	}
+	return []string{filepath.Join(config, "powershell", "Microsoft.PowerShell_profile.ps1")}, nil
+}
+func defaultCompletionDirectory() (string, error) {
+	profiles, err := defaultPowerShellProfiles()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Dir(profiles[0]), "SkopeoWin"), nil
 }
 func lockCompletionFile(file *os.File) (func(), error) { return func() {}, nil }

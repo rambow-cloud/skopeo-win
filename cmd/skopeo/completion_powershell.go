@@ -16,7 +16,6 @@ import (
 	"unicode/utf16"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 //go:embed completion_powershell.ps1
@@ -44,13 +43,17 @@ func powerShellScript(noDescriptions bool) ([]byte, error) {
 	return []byte(strings.ReplaceAll(script, "@@REQUEST@@", request)), nil
 }
 
-func completionCommand(root *cobra.Command) *cobra.Command {
-	parent := &cobra.Command{Use: "completion", Short: "Generate shell completion and manage PowerShell activation", Args: cobra.NoArgs}
+func powerShellCompletionCommand(defaultInstall bool) *cobra.Command {
+	name, short := "powershell", "Generate or configure PowerShell completion"
+	if defaultInstall {
+		name = "autocomplete"
+		short = "Enable PowerShell autocomplete in the current user's profile"
+	}
 	var install, uninstall, status, noDescriptions, showPath bool
 	var profiles []string
 	ps := &cobra.Command{
-		Use: "powershell", Short: "Generate or automatically configure PowerShell completion", Args: cobra.NoArgs,
-		Long: "Generate a safe PowerShell 5.1/7 completion script. --install configures user profiles; --uninstall disables automatic activation. New sessions load the profile; a child executable cannot modify an existing parent shell.",
+		Use: name, Short: short, Args: cobra.NoArgs,
+		Long: "Configure PowerShell 5.1/7 autocomplete in the current user's current console-host profile. Missing profiles are created. Restart PowerShell after setup. Use --profile $PROFILE for a custom host. Ordinary commands never configure profiles.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showPath {
 				if len(profiles) != 0 {
@@ -62,7 +65,7 @@ func completionCommand(root *cobra.Command) *cobra.Command {
 				}
 				return err
 			}
-			if !install && !uninstall && !status {
+			if !defaultInstall && !install && !uninstall && !status {
 				if len(profiles) != 0 {
 					return errors.New("--profile requires --install, --uninstall or --status")
 				}
@@ -85,7 +88,7 @@ func completionCommand(root *cobra.Command) *cobra.Command {
 				if disabledErr != nil && !errors.Is(disabledErr, os.ErrNotExist) {
 					return disabledErr
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "Automatic activation disabled: %t\n", disabledErr == nil || completionEnvironmentDisabled())
+				fmt.Fprintf(cmd.OutOrStdout(), "Profile activation disabled: %t\n", disabledErr == nil || completionEnvironmentDisabled())
 				for _, profile := range selected {
 					data, err := os.ReadFile(profile)
 					if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -101,23 +104,27 @@ func completionCommand(root *cobra.Command) *cobra.Command {
 			if uninstall {
 				fmt.Fprintln(cmd.OutOrStdout(), "PowerShell completion disabled. Open a new terminal to unload the existing completer.")
 			} else {
-				path, _, err := completionFiles()
-				if err != nil {
-					return err
+				for _, profile := range selected {
+					fmt.Fprintf(cmd.OutOrStdout(), "PowerShell autocomplete configured: %s\n", profile)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "PowerShell completion enabled for new sessions. To load it now: . '%s'\n", strings.ReplaceAll(path, "'", "''"))
+				fmt.Fprintln(cmd.OutOrStdout(), "Restart PowerShell to enable autocomplete.")
 			}
 			return nil
 		},
 	}
 	ps.Flags().BoolVar(&install, "install", false, "configure completion in current-user PowerShell profiles")
-	ps.Flags().BoolVar(&uninstall, "uninstall", false, "remove managed profile blocks and disable automatic activation")
-	ps.Flags().BoolVar(&status, "status", false, "show automatic activation and profile status")
+	ps.Flags().BoolVar(&uninstall, "uninstall", false, "remove managed profile blocks and disable completion")
+	ps.Flags().BoolVar(&status, "status", false, "show profile activation status")
 	ps.Flags().BoolVar(&noDescriptions, "no-descriptions", false, "disable completion descriptions")
-	ps.Flags().StringArrayVar(&profiles, "profile", nil, "explicit profile path (repeatable; default: current-user all-hosts profiles)")
+	ps.Flags().StringArrayVar(&profiles, "profile", nil, "explicit profile path (repeatable; default: current user's current console-host profile)")
 	ps.Flags().BoolVar(&showPath, "path", false, "print the installed completion script path for dot-sourcing")
 	ps.MarkFlagsMutuallyExclusive("install", "uninstall", "status", "path")
-	parent.AddCommand(ps)
+	return ps
+}
+
+func completionCommand(root *cobra.Command) *cobra.Command {
+	parent := &cobra.Command{Use: "completion", Short: "Generate shell completion scripts", Args: cobra.NoArgs}
+	parent.AddCommand(powerShellCompletionCommand(false))
 	for _, shell := range []string{"bash", "zsh", "fish"} {
 		var noDescriptions bool
 		command := &cobra.Command{Use: shell, Short: "Generate " + shell + " completion", Args: cobra.NoArgs, RunE: func(c *cobra.Command, args []string) error {
@@ -140,12 +147,21 @@ func completionCommand(root *cobra.Command) *cobra.Command {
 }
 
 func completionFiles() (string, string, error) {
-	profiles, err := completionProfiles(nil)
-	if err != nil {
-		return "", "", err
+	var config string
+	if override := os.Getenv("SKOPEO_POWERSHELL_PROFILES"); override != "" {
+		profiles, err := completionProfiles(nil)
+		if err != nil {
+			return "", "", err
+		}
+		config = filepath.Join(filepath.Dir(profiles[0]), "SkopeoWin")
+	} else {
+		var err error
+		config, err = defaultCompletionDirectory()
+		if err != nil {
+			return "", "", err
+		}
 	}
 	// Documents is shared with the host PowerShell, unlike MSIX-virtualized AppData.
-	config := filepath.Join(filepath.Dir(profiles[0]), "SkopeoWin")
 	return filepath.Join(config, "completion.ps1"), filepath.Join(config, "completion-disabled"), nil
 }
 
@@ -317,40 +333,4 @@ func configurePowerShell(profiles []string, uninstall, noDescriptions bool) erro
 func completionEnvironmentDisabled() bool {
 	value := strings.ToLower(os.Getenv("SKOPEO_POWERSHELL_COMPLETION"))
 	return value == "off" || value == "0" || value == "false"
-}
-
-func autoConfigurePowerShell(cmd *cobra.Command) {
-	if !completionAutoSupported() || cmd == nil {
-		return
-	}
-	if completionEnvironmentDisabled() {
-		return
-	}
-	if os.Getenv("SKOPEO_POWERSHELL_PROFILES") == "" && !term.IsTerminal(int(os.Stdin.Fd())) {
-		return
-	}
-	for parent := cmd; parent != nil; parent = parent.Parent() {
-		if parent.Name() == "completion" || parent.Name() == cobra.ShellCompRequestCmd || parent.Name() == cobra.ShellCompNoDescRequestCmd {
-			return
-		}
-	}
-	for _, name := range []string{"help", "version"} {
-		if flag := cmd.Flags().Lookup(name); flag != nil && flag.Value.String() == "true" {
-			return
-		}
-	}
-	_, disabled, err := completionFiles()
-	if err != nil {
-		return
-	}
-	if _, err := os.Lstat(disabled); !errors.Is(err, os.ErrNotExist) {
-		return
-	}
-	profiles, err := completionProfiles(nil)
-	if err == nil {
-		profiles = automaticPowerShellProfiles(profiles)
-		if len(profiles) > 0 {
-			_ = configurePowerShell(profiles, false, false)
-		}
-	}
 }

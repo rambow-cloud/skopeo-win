@@ -34,21 +34,24 @@ func TestPowerShellCompletionActivation(t *testing.T) {
 		wide = binary.LittleEndian.AppendUint16(wide, u)
 	}
 	write(t, profiles[1], wide)
-	c.executeExact(t, "", nil)
+	setup := c.executeExact(t, "", nil, "autocomplete")
+	if !bytes.Contains(setup.stdout, []byte("Restart PowerShell")) {
+		t.Fatal("setup did not prompt a PowerShell restart")
+	}
 	first := read(t, profiles[0])
 	second := read(t, profiles[1])
 	if !bytes.HasPrefix(first, original) || !bytes.HasPrefix(second, wide) || !bytes.Contains(first, []byte("skopeo-win PowerShell completion")) {
-		t.Fatal("automatic setup lost profile contents or encoding")
+		t.Fatal("explicit setup lost profile contents or encoding")
 	}
-	c.executeExact(t, "", nil)
+	c.executeExact(t, "", nil, "autocomplete")
 	if !bytes.Equal(first, read(t, profiles[0])) || !bytes.Equal(second, read(t, profiles[1])) {
-		t.Fatal("automatic activation is not idempotent")
+		t.Fatal("explicit setup is not idempotent")
 	}
-	status := c.executeExact(t, "", nil, "completion", "powershell", "--status")
-	if !bytes.Contains(status.stdout, []byte("Automatic activation disabled: false")) {
+	status := c.executeExact(t, "", nil, "autocomplete", "--status")
+	if !bytes.Contains(status.stdout, []byte("Profile activation disabled: false")) {
 		t.Fatal("enabled status is incorrect")
 	}
-	c.executeExact(t, "", nil, "completion", "powershell", "--uninstall")
+	c.executeExact(t, "", nil, "autocomplete", "--uninstall")
 	if !bytes.Equal(original, read(t, profiles[0])) || !bytes.Equal(wide, read(t, profiles[1])) {
 		t.Fatal("uninstall changed unrelated profile bytes")
 	}
@@ -56,19 +59,39 @@ func TestPowerShellCompletionActivation(t *testing.T) {
 	if !bytes.Equal(original, read(t, profiles[0])) {
 		t.Fatal("disabled completion was automatically re-enabled")
 	}
-	status = c.executeExact(t, "", nil, "completion", "powershell", "--status")
-	if !bytes.Contains(status.stdout, []byte("Automatic activation disabled: true")) {
+	status = c.executeExact(t, "", nil, "autocomplete", "--status")
+	if !bytes.Contains(status.stdout, []byte("Profile activation disabled: true")) {
 		t.Fatal("disabled status is incorrect")
 	}
-	c.executeExact(t, "", nil, "completion", "powershell", "--install")
+	c.executeExact(t, "", nil, "autocomplete")
 	if !bytes.Contains(read(t, profiles[0]), []byte("skopeo-win PowerShell completion")) {
 		t.Fatal("explicit re-enable failed")
 	}
 	assertNoDefaultPolicy(t, c.root)
-	bad := c.executeExact(t, "absolute", nil, "completion", "powershell", "--install", "--profile", "relative.ps1")
+	bad := c.executeExact(t, "absolute", nil, "autocomplete", "--profile", "relative.ps1")
 	if bad.exitCode != 1 {
 		t.Fatal("relative profile accepted")
 	}
+}
+
+func TestPowerShellAutocompleteCreatesOnlySelectedProfile(t *testing.T) {
+	c := newCLI(t)
+	profile := filepath.Join(c.root, "custom host", "Microsoft.VSCode_profile.ps1")
+	c.executeExact(t, "", nil, "autocomplete", "--profile", profile)
+	first := read(t, profile)
+	if !bytes.Contains(first, []byte("skopeo-win PowerShell completion")) {
+		t.Fatal("missing profile was not created")
+	}
+	c.executeExact(t, "", nil, "autocomplete", "--profile", profile)
+	if !bytes.Equal(first, read(t, profile)) {
+		t.Fatal("selected profile setup is not idempotent")
+	}
+	for _, other := range completionProfilePaths(c) {
+		if _, err := os.Stat(other); !os.IsNotExist(err) {
+			t.Fatal("setup modified an unselected profile")
+		}
+	}
+	assertNoDefaultPolicy(t, c.root)
 }
 
 func TestPowerShellCompletionPreservesOpaqueProfileAndRejectsAmbiguity(t *testing.T) {
@@ -114,7 +137,9 @@ func TestPowerShellCompletionPreservesOpaqueProfileAndRejectsAmbiguity(t *testin
 func TestPowerShellReadOnlyCommandsDoNotConfigureProfiles(t *testing.T) {
 	c := newCLI(t)
 	setCLIEnv(&c, "SKOPEO_POWERSHELL_COMPLETION", "on")
-	for _, args := range [][]string{{"--help"}, {"--version"}, {"completion", "powershell"}, {"__complete", "inspect", "--override-os", "li"}} {
+	manifest := filepath.Join(c.root, "manifest.json")
+	write(t, manifest, []byte(`{"schemaVersion":2}`))
+	for _, args := range [][]string{nil, {"manifest-digest", manifest}, {"--help"}, {"--version"}, {"autocomplete", "--help"}, {"autocomplete", "--status"}, {"completion", "powershell"}, {"__complete", "inspect", "--override-os", "li"}} {
 		c.executeExact(t, "", nil, args...)
 	}
 	c.executeExact(t, "must not be negative", nil, "--command-timeout=-1s")
@@ -131,7 +156,7 @@ func TestPowerShellReadOnlyCommandsDoNotConfigureProfiles(t *testing.T) {
 	assertNoDefaultPolicy(t, c.root)
 	for _, path := range completionProfilePaths(c) {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Fatal("read-only or failed command configured a profile")
+			t.Fatal("ordinary, read-only or failed command configured a profile")
 		}
 	}
 }
@@ -144,6 +169,11 @@ func TestPowerShellTabExpansion(t *testing.T) {
 				t.Fatal(err)
 			}
 			c := newCLI(t)
+			// Windows PowerShell 5.1 leaves $PROFILE unset when Documents is absent
+			// at startup. Create only the sandbox Documents directory for discovery.
+			if err := os.MkdirAll(filepath.Join(c.root, "Documents"), 0700); err != nil {
+				t.Fatal(err)
+			}
 			// Quotes, spaces and metacharacters in executable paths remain literal.
 			binary := filepath.Join(c.root, "\u5de5\u5177 tool space ' $; [] folder", "skopeo-win.exe")
 			write(t, binary, read(t, executable))
@@ -158,13 +188,11 @@ func TestPowerShellTabExpansion(t *testing.T) {
 					t.Fatal("script generation wrote a profile")
 				}
 			}
-			c.executeExact(t, "", nil, "completion", "powershell", "--install")
 			profileIndex := 0
 			if shell == "powershell.exe" {
 				profileIndex = 1
 			}
 			profile := completionProfilePaths(c)[profileIndex]
-			profileBefore := read(t, profile)
 			lines := []struct{ line, want string }{
 				{"skopeo-win ins", "inspect"},
 				{"skopeo copy --dest-t", "--dest-tls-verify"},
@@ -184,6 +212,19 @@ func TestPowerShellTabExpansion(t *testing.T) {
 			}
 			encoded, _ := json.Marshal(payload)
 			check := `$ErrorActionPreference='Stop'
+# Default discovery is read-only here; all setup below uses the sandbox profile.
+$savedProfiles = $env:SKOPEO_POWERSHELL_PROFILES
+try {
+    $env:SKOPEO_POWERSHELL_PROFILES = $null
+    $status = & $env:COMPLETION_BINARY autocomplete --status
+    if ($LASTEXITCODE -ne 0) { throw 'Default profile discovery failed' }
+    if (-not (($status -join [Environment]::NewLine).Contains('Profile: ' + $PROFILE.CurrentUserCurrentHost + ';'))) {
+        throw ('Default profile does not match the calling console host: expected ' + $PROFILE.CurrentUserCurrentHost + '; received ' + ($status -join ' '))
+    }
+} finally { $env:SKOPEO_POWERSHELL_PROFILES = $savedProfiles }
+$setup = & $env:COMPLETION_BINARY autocomplete --profile $env:COMPLETION_PROFILE
+if ($LASTEXITCODE -ne 0 -or -not (($setup -join ' ').Contains('Restart PowerShell'))) { throw 'Explicit setup failed' }
+$profileBefore = [Convert]::ToBase64String([IO.File]::ReadAllBytes($env:COMPLETION_PROFILE))
 . $env:COMPLETION_PROFILE
 $lines = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:COMPLETION_LINES)) | ConvertFrom-Json
 $results = @()
@@ -196,11 +237,13 @@ $sentinel = Join-Path $env:COMPLETION_ROOT 'injected.txt'
 $malicious = 'skopeo-win --tmpdir "$(Set-Content -LiteralPath ''' + $sentinel.Replace("'","''") + ''' owned)" ins'
 $null = [Management.Automation.CommandCompletion]::CompleteInput($malicious, $malicious.Length, $null)
 if (Test-Path -LiteralPath $sentinel) { throw 'Completion executed an argument expression' }
+if ($profileBefore -ne [Convert]::ToBase64String([IO.File]::ReadAllBytes($env:COMPLETION_PROFILE))) { throw 'Tab completion changed the profile' }
 ConvertTo-Json -InputObject @($results) -Compress -Depth 10
 `
 			script := filepath.Join(c.root, "check.ps1")
 			write(t, script, []byte(check))
 			setCLIEnv(&c, "COMPLETION_PROFILE", profile)
+			setCLIEnv(&c, "COMPLETION_BINARY", executable)
 			setCLIEnv(&c, "SKOPEO_POWERSHELL_COMPLETION", "on")
 			setCLIEnv(&c, "COMPLETION_LINES", base64.StdEncoding.EncodeToString(encoded))
 			setCLIEnv(&c, "COMPLETION_ROOT", c.root)
@@ -238,8 +281,11 @@ ConvertTo-Json -InputObject @($results) -Compress -Depth 10
 				}
 			}
 			assertNoDefaultPolicy(t, c.root)
-			if !bytes.Equal(profileBefore, read(t, profile)) {
-				t.Fatal("tab completion changed a profile")
+			if !bytes.Contains(read(t, profile), []byte("skopeo-win PowerShell completion")) {
+				t.Fatal("explicit setup did not create the shell's profile")
+			}
+			if _, err := os.Stat(completionProfilePaths(c)[1-profileIndex]); !os.IsNotExist(err) {
+				t.Fatal("setup changed the other shell's profile")
 			}
 		})
 	}
