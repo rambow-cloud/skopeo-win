@@ -1,164 +1,110 @@
-# Skopeo for Windows (Pure Go Build)
+# Windows guide
 
-This independently maintained project originated from Skopeo v1.23.0 and produces native Windows executables without GCC, MSYS2, GPGME, or other third-party C libraries. Its release versions are independent of Skopeo. The build enforces `CGO_ENABLED=0` and selects the pure-Go OpenPGP implementation with the `containers_image_openpgp` build tag.
+Use PowerShell 5.1 or 7. Examples use the Store alias `skopeo-win`; for a portable
+download, substitute `.\skopeo-windows-amd64.exe` or the ARM64 filename.
+See [installation](install.md) and the [quick start](README.md#quick-usage).
 
-## Build
+## Images and paths
 
-PowerShell 7 (or Windows PowerShell 5.1) and Go 1.27.3 or newer are required. Run this command from the repository root:
-
-```powershell
-.\build-windows.ps1
-```
-
-By default, the script creates `dist\skopeo-windows-amd64.exe` and its SHA-256 checksum file. Build both amd64 and arm64 binaries with:
-
-```powershell
-.\build-windows.ps1 -Architecture amd64,arm64
-```
-
-Local builds identify themselves as `0.0.0-dev`. To reproduce a tagged release version, use `-Version 1.0.0` from that tag's source. Release CI uses the exact maintainer-created tag version; other CI builds use development versions.
-
-Debug symbols are retained by default so binary vulnerability scans can identify packages accurately. Stripped PE executables make govulncheck fall back to conservative module-level matching. Release builds must retain symbols; `-KeepDebugSymbols:$false` is available only for custom size-optimized builds that will not pass the same scan guarantees.
-
-Before delivering each executable, the script verifies that:
-
-- the Go build metadata contains `CGO_ENABLED=0`, `GOOS=windows`, and the requested architecture;
-- the `containers_image_openpgp` build tag is enabled;
-- the PE import table does not contain GPGME, OpenSSL, MSVC/UCRT, or MinGW C/C++ runtime libraries.
-
-The executable can still use standard Windows system APIs. In this repository, "no C library dependency" means that users do not need to install or distribute a third-party C library or C runtime with Skopeo.
-
-## Usage
-
-Rename the executable to `skopeo.exe` and add it to `PATH`, or run it directly:
-
-```powershell
-.\dist\skopeo-windows-amd64.exe --version
-.\dist\skopeo-windows-amd64.exe inspect docker://docker.io/library/alpine:latest
-.\dist\skopeo-windows-amd64.exe copy docker://docker.io/library/nginx:latest docker-archive:./nginx.tar:nginx:latest
-```
-
-The copy example creates `nginx.tar` in the current directory. Docker can import
-it with `docker load -i .\nginx.tar`; exporting the archive does not require Docker.
-Images default to `linux` and the native Windows machine architecture (`amd64`
-or `arm64`), including detection of ARM64 hosts running an emulated x64 binary.
-Explicit flags still take precedence:
+Images default to **Linux** and the native machine architecture, including ARM64
+hosts running an emulated x64 binary. Override either when needed:
 
 ```powershell
 skopeo-win --override-os windows inspect docker://mcr.microsoft.com/windows/nanoserver:ltsc2022
 skopeo-win --override-arch arm64 inspect docker://docker.io/library/nginx:latest
 ```
 
-`copy --all` and `sync --all` continue to copy every platform in a manifest list.
-For a named OCI layout on Windows, use an absolute path, for example
-`oci:C:\images\nginx:latest`.
+Quote file transports, especially paths containing spaces. Use an absolute
+Windows path for named OCI layouts; `$PWD` supplies the current directory:
 
-For private registries, use `skopeo login registry.example.com` or pass `--creds USER:PASSWORD` to an individual command. TLS certificate, authentication file, and policy file options work like their upstream Skopeo equivalents.
+```powershell
+skopeo-win copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
+skopeo-win copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
+skopeo-win copy docker://docker.io/library/nginx:latest "oci:$PWD\nginx-oci:latest"
+```
 
-Running `skopeo-win` without a command displays the same help as `skopeo-win --help`
-and exits successfully with status 0. Valid global flags without a command also
-display help. Unknown commands, invalid flags and missing required subcommand
-arguments remain errors.
+`docker-archive:` creates a tar file; `dir:` stores separate manifests/layers;
+`oci:` creates an OCI layout. `copy --all` copies all image platforms. No Docker
+daemon is needed; Docker can optionally import the tar with `docker load -i .\nginx.tar`.
 
-Invalid options and arguments report their error on stderr and exit with status 1.
-Command timeouts and retry counts must be non-negative. Retry delays must be 0
-(automatic backoff) or at least 10ns; invalid ranges fail before registry access or
-policy/output creation. A timeout of 0 continues to disable the command deadline.
+## Login and sync
+
+```powershell
+skopeo-win login registry.example.com
+skopeo-win sync --dry-run --src docker --dest dir docker.io/library/nginx:latest .\mirror
+skopeo-win sync --src docker --dest dir docker.io/library/nginx:latest .\mirror
+skopeo-win logout registry.example.com
+```
+
+Login prompts for credentials. The default auth file is
+`$env:USERPROFILE\.config\containers\auth.json`; select another with `--authfile`
+or `$env:REGISTRY_AUTH_FILE`. For private CAs, pass `--cert-dir .\certs` to the
+relevant command, or `--src-cert-dir` / `--dest-cert-dir` for copy/sync.
+
+Windows sync encodes reserved filename characters using `~skopeo~` and percent
+escapes. Keep exported names intact for restoration; see [sync](docs/skopeo-sync.1.md).
+
+## Image trust policy
+
+When no policy exists, the first copy or non-dry-run sync creates
+`$env:APPDATA\containers\policy.json`. If it cannot be safely written, the same
+embedded policy is used in memory. Existing or explicitly selected policies take
+precedence; invalid existing policies are reported rather than replaced.
+
+The default accepts unsigned images only from `docker.io/library`,
+`mcr.microsoft.com`, `registry.k8s.io`, `quay.io/prometheus` and `ghcr.io/fluxcd`.
+This is namespace-based acceptance, not publisher-signature verification;
+HTTPS verification remains enabled.
+
+Private registries, other namespaces and local image sources need a policy
+that trusts the selected source. Select it with `--policy .\policy.json` before
+the command, or set `$env:CONTAINERS_POLICY_JSON`. For example, a policy for one
+private registry can contain:
+
+```json
+{
+  "default": [{"type": "reject"}],
+  "transports": {
+    "docker": {"registry.example.com": [{"type": "insecureAcceptAnything"}]}
+  }
+}
+```
+
+For local sources, configure the relevant transport and absolute Windows path.
+See the [policy format](https://github.com/containers/image/blob/main/docs/containers-policy.json.5.md)
+for signed-image policies. `--insecure-policy` explicitly accepts all sources.
 
 ## PowerShell completion
-
-PowerShell 7 and Windows PowerShell 5.1 support Tab completion for `skopeo`,
-`skopeo-win`, their `.exe` aliases and portable executable names. Completion
-includes commands, options, common OS/architecture/format values, platform lists
-and image-transport prefixes. It does not query registries.
-
-Run the following command once to enable completion, then restart PowerShell as
-prompted. Ordinary CLI commands never configure profiles.
 
 ```powershell
 skopeo-win completion
 ```
 
-Setup adds a managed block to the calling console host's current-user profile
-(`Microsoft.PowerShell_profile.ps1` under Documents\PowerShell for PowerShell 7,
-or Documents\WindowsPowerShell for Windows PowerShell 5.1). Missing directories
-and profiles are created at user scope; administrator access is unnecessary.
-For custom hosts such as VS Code, select the current profile explicitly:
+Run once, then restart PowerShell. Setup creates or updates the current user's
+current console-host profile, preserving its content and encoding. Changed
+nonempty profiles receive `.skopeo-win-*.bak` backups. Ordinary commands never
+configure profiles; signed, linked or ambiguous profiles are rejected.
+
+For a custom host such as VS Code, use `skopeo-win completion --profile "$PROFILE"`.
+Use the same profile selection with `--status` or `--uninstall`. `--path` prints
+the installed script path; `--no-descriptions` omits completion descriptions.
+The script is stored under Documents\PowerShell\SkopeoWin. Setup does not change
+execution policy; the host must permit profile scripts. There are no shell subcommands.
+
+## Build
+
+Use PowerShell 7 and the Go version declared in `go.mod`, from the repository root:
 
 ```powershell
-skopeo-win completion --profile "$PROFILE"
-skopeo-win completion --status
-skopeo-win completion --uninstall
+.\build-windows.ps1 -Architecture amd64,arm64
+.\hack\test-windows-integration.ps1 -ExpectedVersion 0.0.0-dev
 ```
 
-Use the same `--profile` selection for status/removal of a custom host. Existing
-content and encoding are preserved, repeated setup is idempotent, and changed
-nonempty profiles receive unique `.skopeo-win-*.bak` backups. Signed, linked and
-ambiguous profiles are not overwritten. The shared script is stored in the known
-Documents folder under `PowerShell\SkopeoWin`. Setup reports file/configuration
-errors and never changes execution policy; the host's policy must permit profiles.
+Outputs are under `dist\` and default to `0.0.0-dev`. The build enforces
+`CGO_ENABLED=0`, pure-Go OpenPGP and PE dependency checks. Debug symbols remain
+enabled for vulnerability scanning; release builds must retain them.
 
-Uninstall disables profile loading; restart PowerShell to unload an already
-registered completer. Run `completion` again to re-enable it. Set
-`SKOPEO_POWERSHELL_COMPLETION=off` to suppress profile loading. Advanced hosts may
-set the semicolon-separated `SKOPEO_POWERSHELL_PROFILES` absolute path list, or use
-repeatable `--profile PATH` for explicit setup/removal. `completion` is dedicated
-to PowerShell and has no shell subcommands. `--no-descriptions` omits completion
-descriptions; `--path` prints the installed script path without configuring profiles.
-
-## Image trust policy
-
-On a clean Windows profile, the first `copy` or non-dry-run `sync` that needs a
-policy creates `%APPDATA%\containers\policy.json` from an embedded template.
-If the template cannot be safely saved, the same policy is used in memory and
-the operation continues. `--version`, help, `inspect`, and `sync --dry-run` do not
-create this file. Concurrent first runs publish complete bytes without replacing
-an existing file; creation cannot follow a junction outside the configured root.
-
-The template rejects sources by default and permits only these public namespaces:
-
-- `docker.io/library` (Docker Official Images)
-- `mcr.microsoft.com`
-- `registry.k8s.io`
-- `quay.io/prometheus`
-- `ghcr.io/fluxcd`
-
-This is namespace-based acceptance of unsigned images, not cryptographic
-publisher-signature verification. HTTPS certificate verification remains enabled.
-Copying from other Docker Hub/GHCR namespaces, private registries or local image
-sources needs an explicit trust policy. Edit the generated file or select a policy using
-`--policy PATH` or `CONTAINERS_POLICY_JSON`. For signature enforcement, configure
-trusted signing identities in that policy and use `--require-signed` as needed.
-
-Existing user/system policies and explicit selections take precedence. Invalid
-existing policies and missing explicit policy paths remain errors; they are never
-silently replaced with the embedded template. The explicit `--insecure-policy`
-option remains available for operations where you intentionally accept every
-source. See the [policy format](https://github.com/containers/image/blob/main/docs/containers-policy.json.5.md).
-
-## Windows feature scope
-
-Common transports that do not depend on Linux container storage drivers are supported, including remote registries, `dir:`, `oci:`, `oci-archive:`, and `docker-archive:`. The upstream experimental hidden `proxy` command explicitly does not support Windows. Workflows that require Linux namespaces, mounts, or Linux graph drivers are outside the scope of this executable.
-
-## Independent maintenance
-
-Bug fixes, security updates, and selected feature ports are implemented through scoped issues and reviewed PRs. Do not bulk-merge upstream Skopeo source releases or copy their version constants. Dependency upgrades remain supported and must pass Windows compatibility and vulnerability checks. Preserve applicable upstream copyright and license notices when porting a feature.
-
-## Tagged releases
-
-Merges and pushes to `main`, PRs and normal manual builds run checks without publishing or updating the Store. Accumulate reviewed features on `main`, then create and push an unused stable tag such as `v1.0.15` to release. The exact tag version is embedded in both executables, so `--version` matches the release tag. The tagged source must belong to main history. A successful tagged release triggers the existing Store automation. Other builds use development versions.
-
-Publication first creates a draft, verifies all four uploaded asset digests, and then makes it public. A release-job retry resumes missing draft uploads or verifies an already published release without modifying it. Published files and tags are never overwritten or moved. Historical `v1.23.0` is retained but excluded from the independent counter. See [release-policy.md](docs/release-policy.md) for details.
-
-## Vulnerability checks
-
-The release build uses the Go version declared in `go.mod`. CI runs command unit tests and installs `govulncheck` v1.9.0 to scan production Windows source and both binaries before uploading release assets. Source analysis checks reachable vulnerabilities; binary scans also reject findings in packages present in the executable. Module-only advisories for packages absent from the build are reported separately and do not fail the gate. A separate release job receives write permission only after the build and scan job succeeds.
-
-To repeat these checks locally after building both architectures:
-
-```powershell
-go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
-.\hack\check-vulnerabilities.ps1
-```
-
-The scanner needs network access to the Go vulnerability database. Reports are written under `.cache/vulnerability-scan` and retained as CI artifacts. A clean result covers known Go database findings for the scanned configuration and database snapshot, not all possible vulnerabilities.
+See [integration coverage](docs/windows-integration-tests.md), the
+[security scan](docs/security-scan-2026-11-02.md) and [release policy](docs/release-policy.md).
+Linux storage drivers, mounts/namespaces and the experimental `proxy` command
+are outside this executable's scope.

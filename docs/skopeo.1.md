@@ -2,52 +2,43 @@
 % Jhon Honce
 % August 2016
 ## NAME
-skopeo -- Command line utility used to interact with local and remote container images and container image registries
+skopeo-win -- Command line utility used to interact with local and remote container images and container image registries
 
 ## SYNOPSIS
-**skopeo** [_global options_] _command_ [_command options_]
+**skopeo-win** [_global options_] _command_ [_command options_]
 
 ## DESCRIPTION
-`skopeo` is a command line utility providing various operations with container images and container image registries.
+`skopeo-win` inspects, copies and synchronizes images between registries, archives
+and local directories. It also supports registry authentication, image signing
+and verification, format conversion and registry manifest deletion.
 
-`skopeo` can copy container images between various containers image stores, converting them as necessary.  For example you can use `skopeo` to copy container images from one container registry to another.
-
-`skopeo` can convert a Docker schema 2 or schema 1 container image to an OCI image.
-
-`skopeo` can inspect a repository on a container registry without needlessly pulling the image. Pulling an image from a repository, especially a remote repository, is an expensive network and storage operation. Skopeo fetches the repository's manifest and displays a `docker inspect`-like json output about the repository or a tag. `skopeo`, in contrast to `docker inspect`, helps you gather useful information about a repository or a tag without requiring you to run `docker pull` - e.g. - Which tags are available for the given repository? Which labels does the image have?
-
-`skopeo` can sign and verify container images.
-
-`skopeo` can delete container images from a remote container registry.
-
-Note: `skopeo` does not require any container runtimes to be running to do most of
-its functionality.  It also does not require root, unless you are copying images into a container runtime storage backend, like the docker daemon or github.com/containers/storage.
+Windows usage examples are in the [quick start](../README.md#quick-usage) and
+[Windows guide](../WINDOWS.md). Docker and administrator access are unnecessary
+for registry, archive and directory operations.
 
 ## IMAGE NAMES
 Most commands refer to container images, using a _transport_`:`_details_ format. The following formats are supported:
-
-  **containers-storage:**_docker-reference_
-  An image located in a local containers/storage image store.  Both the location and image store are specified in /etc/containers/storage.conf. (Backend for Podman, CRI-O, Buildah and friends)
 
   **dir:**_path_
   An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
   **docker://**_docker-reference_
   An image in a registry implementing the "Docker Registry HTTP API V2".
-  Credentials are typically managed using `(skopeo login)`;
+  Credentials are typically managed using `skopeo-win login`;
   see **containers-auth.json**(5) for more details about the credential search mechanism.
 
   **docker-archive:**_path_[**:**_docker-reference_]
   An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
-
-  **docker-daemon:**_docker-reference_
-  An image _docker-reference_ stored in the docker daemon internal storage.  _docker-reference_ must contain either a tag or a digest.  Alternatively, when reading images, the format can be docker-daemon:algo:digest (an image ID).
 
   **oci:**_path_**:**_tag_
   An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
 
   **oci-archive:**_path_**:**_tag_
   An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_.
+
+Use quoted Windows paths, for example `"dir:$PWD\nginx"` or
+`"oci:$PWD\nginx-oci:latest"`. Linux container storage drivers and Unix socket
+paths are outside normal Windows usage.
 
 See [containers-transports(5)](https://github.com/containers/image/blob/main/docs/containers-transports.5.md) for details.
 
@@ -58,7 +49,7 @@ Individual subcommands have their own options.
 
 **--command-timeout** _duration_
 
-Timeout for the command execution (e.g. 30s, 10m).
+Non-negative timeout for command execution (e.g. 30s, 10m); 0 disables it.
 
 **--debug**
 
@@ -74,11 +65,11 @@ Adopt an insecure, permissive policy that allows anything. This obviates the nee
 
 **--override-arch** _arch_
 
-Use _arch_ instead of the architecture of the machine for choosing images.
+Select image architecture; defaults to the native Windows machine architecture.
 
 **--override-os** _os_
 
-Use _OS_ instead of the running OS for choosing images.
+Select the image OS; defaults to `linux`, even when running on Windows.
 
 **--override-variant** _variant_
 
@@ -107,7 +98,8 @@ Users should generally not use this option unless they have a process to ensure 
 
 **--tmpdir** _dir_
 
-Directory used to store temporary files. Defaults to /var/tmp.
+Directory used to store temporary files. Defaults to the Windows temporary directory
+(typically `$env:TEMP`); use a quoted Windows path to override it.
 
 **--user-agent-prefix** _prefix_
 
@@ -121,6 +113,7 @@ Print the version number
 
 | Command                                   | Description                                                                    |
 | ----------------------------------------- | ------------------------------------------------------------------------------ |
+| `completion` | Configure PowerShell Tab completion; restart PowerShell afterward. |
 | [skopeo-copy(1)](skopeo-copy.1.md)        | Copy an image (manifest, filesystem layers, signatures) from one location to another. |
 | [skopeo-delete(1)](skopeo-delete.1.md)    | Mark the _image-name_ for later deletion by the registry's garbage collector.  |
 | [skopeo-generate-sigstore-key(1)](skopeo-generate-sigstore-key.1.md)    | Generate a sigstore public/private key pair.  |
@@ -134,7 +127,8 @@ Print the version number
 | [skopeo-sync(1)](skopeo-sync.1.md)| Synchronize images between registry repositories and local directories.                |
 
 ## EXIT STATUS
-`skopeo` exits with status 0 on success, non-zero on error.
+`skopeo-win` exits with status 0 on success, non-zero on error. Running without
+a command prints help and exits successfully.
 
 Details about the exit statuses:
 
@@ -143,13 +137,12 @@ Details about the exit statuses:
 **2** The input image cannot be found. Note that this is best effort and for remote registries the status often cannot be reliably reported.
 
 ## FILES
-  **/etc/containers/policy.json**
-  Default trust policy file, if **--policy** is not specified.
-  The policy format is documented in [containers-policy.json(5)](https://github.com/containers/image/blob/main/docs/containers-policy.json.5.md) .
 
-  **/etc/containers/registries.d**
-  Default directory containing registry configuration, if **--registries.d** is not specified.
-  The contents of this directory are documented in [containers-registries.d(5)](https://github.com/containers/image/blob/main/docs/containers-registries.d.5.md).
+- `$env:APPDATA\containers\policy.json`: Windows user trust policy. When none
+  exists, copy/sync uses the built-in public-namespace policy; see the
+  [policy defaults](../WINDOWS.md#image-trust-policy).
+- `$env:USERPROFILE\.config\containers\auth.json`: default registry credentials.
+- Use `--registries.d .\registries.d` for an explicit registry configuration directory.
 
 ## SEE ALSO
 skopeo-login(1), docker-login(1), containers-auth.json(5), containers-storage.conf(5), containers-policy.json(5), containers-transports(5)
