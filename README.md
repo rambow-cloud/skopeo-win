@@ -33,28 +33,30 @@ Install from **[Microsoft Store](https://apps.microsoft.com/detail/9MT5QPKZDHGD)
 then open PowerShell or Windows Terminal:
 
 ```powershell
-skopeo-win --version
-skopeo-win --help
+skopeo --version
+skopeo --help
 ```
 
 For portable use, download the x64 or ARM64 executable from
-**[GitHub Releases](https://github.com/rambow-cloud/skopeo-win/releases/latest)**
-and run it with `.\`, for example `.\skopeo-windows-amd64.exe --help`.
+**[GitHub Releases](https://github.com/rambow-cloud/skopeo-win/releases/latest)**.
+
+Rename the download to `skopeo.exe`, then run `.\skopeo.exe --help`.
+Add its folder to `PATH` to use `skopeo` from any directory.
 
 ## Quick usage
 
 Inspect an image or list its tags without downloading its layers:
 
 ```powershell
-skopeo-win inspect docker://docker.io/library/nginx:latest
-skopeo-win list-tags docker://docker.io/library/nginx
+skopeo inspect docker://docker.io/library/nginx:latest
+skopeo list-tags docker://docker.io/library/nginx
 ```
 
 Save an image as a Docker archive or as individual local files:
 
 ```powershell
-skopeo-win copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
-skopeo-win copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
+skopeo copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
+skopeo copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
 ```
 
 The archive can be imported with `docker load -i .\nginx.tar` if Docker is
@@ -63,13 +65,13 @@ installed. Skopeo itself does not need Docker or a container daemon.
 Log in to a private registry with an interactive password prompt:
 
 ```powershell
-skopeo-win login registry.example.com
+skopeo login registry.example.com
 ```
 
 Enable PowerShell Tab completion once, then restart PowerShell:
 
 ```powershell
-skopeo-win completion
+skopeo completion
 ```
 
 Images default to **Linux** and your computer's native **architecture**. Copy/sync
@@ -88,7 +90,7 @@ Packaged features follow the [release notes](docs/release-notes.md).
 | Mirror repositories | [`sync`](docs/skopeo-sync.1.md) |
 | Manage registry credentials | [`login`](docs/skopeo-login.1.md), [`logout`](docs/skopeo-logout.1.md) |
 
-Use `skopeo-win COMMAND --help` or the [full reference](docs/skopeo.1.md) for more
+Use `skopeo COMMAND --help` or the [full reference](docs/skopeo.1.md) for more
 commands and options. [Installation](install.md) and [building](WINDOWS.md#build)
 use native Windows binaries with no third-party C runtime.
 

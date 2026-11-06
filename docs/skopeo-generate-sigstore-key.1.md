@@ -4,7 +4,7 @@
 skopeo\-generate-sigstore-key - Generate a sigstore public/private key pair.
 
 ## SYNOPSIS
-**skopeo-win generate-sigstore-key** [*options*] **--output-prefix** _prefix_
+**skopeo generate-sigstore-key** [*options*] **--output-prefix** _prefix_
 
 ## DESCRIPTION
 
@@ -38,7 +38,7 @@ Do not use this option if at all avoidable.
 ## EXAMPLES
 
 ```powershell
-skopeo-win generate-sigstore-key --output-prefix .\signing-key
+skopeo generate-sigstore-key --output-prefix .\signing-key
 ```
 
 Enter the private-key passphrase when prompted.

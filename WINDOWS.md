@@ -1,7 +1,7 @@
 # Windows guide
 
-Use PowerShell 5.1 or 7. Examples use the Store alias `skopeo-win`; for a portable
-download, substitute `.\skopeo-windows-amd64.exe` or the ARM64 filename.
+Use PowerShell 5.1 or 7. Examples use `skopeo`. For a portable download, rename
+the executable to `skopeo.exe` and use `.\skopeo.exe` until its folder is on `PATH`.
 See [installation](install.md) and the [quick start](README.md#quick-usage).
 
 ## Images and paths
@@ -10,17 +10,17 @@ Images default to **Linux** and the native machine architecture, including ARM64
 hosts running an emulated x64 binary. Override either when needed:
 
 ```powershell
-skopeo-win --override-os windows inspect docker://mcr.microsoft.com/windows/nanoserver:ltsc2022
-skopeo-win --override-arch arm64 inspect docker://docker.io/library/nginx:latest
+skopeo --override-os windows inspect docker://mcr.microsoft.com/windows/nanoserver:ltsc2022
+skopeo --override-arch arm64 inspect docker://docker.io/library/nginx:latest
 ```
 
 Quote file transports, especially paths containing spaces. Use an absolute
 Windows path for named OCI layouts; `$PWD` supplies the current directory:
 
 ```powershell
-skopeo-win copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
-skopeo-win copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
-skopeo-win copy docker://docker.io/library/nginx:latest "oci:$PWD\nginx-oci:latest"
+skopeo copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
+skopeo copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
+skopeo copy docker://docker.io/library/nginx:latest "oci:$PWD\nginx-oci:latest"
 ```
 
 `docker-archive:` creates a tar file; `dir:` stores separate manifests/layers;
@@ -30,10 +30,10 @@ daemon is needed; Docker can optionally import the tar with `docker load -i .\ng
 ## Login and sync
 
 ```powershell
-skopeo-win login registry.example.com
-skopeo-win sync --dry-run --src docker --dest dir docker.io/library/nginx:latest .\mirror
-skopeo-win sync --src docker --dest dir docker.io/library/nginx:latest .\mirror
-skopeo-win logout registry.example.com
+skopeo login registry.example.com
+skopeo sync --dry-run --src docker --dest dir docker.io/library/nginx:latest .\mirror
+skopeo sync --src docker --dest dir docker.io/library/nginx:latest .\mirror
+skopeo logout registry.example.com
 ```
 
 Login prompts for credentials. The default auth file is
@@ -77,7 +77,7 @@ for signed-image policies. `--insecure-policy` explicitly accepts all sources.
 ## PowerShell completion
 
 ```powershell
-skopeo-win completion
+skopeo completion
 ```
 
 Run once, then restart PowerShell. Setup creates or updates the current user's
@@ -85,7 +85,7 @@ current console-host profile, preserving its content and encoding. Changed
 nonempty profiles receive `.skopeo-win-*.bak` backups. Ordinary commands never
 configure profiles; signed, linked or ambiguous profiles are rejected.
 
-For a custom host such as VS Code, use `skopeo-win completion --profile "$PROFILE"`.
+For a custom host such as VS Code, use `skopeo completion --profile "$PROFILE"`.
 Use the same profile selection with `--status` or `--uninstall`. `--path` prints
 the installed script path; `--no-descriptions` omits completion descriptions.
 The script is stored under Documents\PowerShell\SkopeoWin. Setup does not change

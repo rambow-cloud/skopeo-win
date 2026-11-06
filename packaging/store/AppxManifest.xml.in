@@ -33,7 +33,6 @@
                         EntryPoint="Windows.FullTrustApplication">
           <uap5:AppExecutionAlias desktop4:Subsystem="console">
             <uap5:ExecutionAlias Alias="skopeo.exe" />
-            <uap5:ExecutionAlias Alias="skopeo-win.exe" />
           </uap5:AppExecutionAlias>
         </uap5:Extension>
       </Extensions>

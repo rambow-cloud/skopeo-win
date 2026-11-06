@@ -4,7 +4,7 @@
 skopeo\-inspect - Return low-level information about _image-name_ in a registry.
 
 ## SYNOPSIS
-**skopeo-win inspect** [*options*] _image-name_
+**skopeo inspect** [*options*] _image-name_
 
 ## DESCRIPTION
 
@@ -25,7 +25,7 @@ Path of the primary registry credentials file. On Windows, the default is
 `$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
 or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo-win login` to manage the credentials.
+Use `skopeo login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -105,10 +105,10 @@ Algorithm to use for computing manifest digest (sha256, sha512); defaults to alg
 ## EXAMPLES
 
 ```powershell
-skopeo-win inspect docker://docker.io/library/nginx:latest
-skopeo-win inspect --no-tags --format '{{.Digest}}' docker://docker.io/library/nginx:latest
-skopeo-win inspect --config docker://docker.io/library/nginx:latest | ConvertFrom-Json
-skopeo-win inspect --manifest-digest sha512 --format '{{.Digest}}' docker://docker.io/library/nginx:latest
+skopeo inspect docker://docker.io/library/nginx:latest
+skopeo inspect --no-tags --format '{{.Digest}}' docker://docker.io/library/nginx:latest
+skopeo inspect --config docker://docker.io/library/nginx:latest | ConvertFrom-Json
+skopeo inspect --manifest-digest sha512 --format '{{.Digest}}' docker://docker.io/library/nginx:latest
 ```
 
 ## SEE ALSO

@@ -4,10 +4,10 @@
 skopeo\-logout - Logout of a container registry.
 
 ## SYNOPSIS
-**skopeo-win logout** [*options*] _registry_
+**skopeo logout** [*options*] _registry_
 
 ## DESCRIPTION
-**skopeo-win logout** logs out of a specified registry server by deleting the cached credentials
+**skopeo logout** logs out of a specified registry server by deleting the cached credentials
 stored in the **auth.json** file. The path of the credentials file can be overridden by the user by setting the **authfile** flag.
 All the cached credentials can be removed by setting the **all** flag.
 
@@ -42,9 +42,9 @@ Require HTTPS and verify certificates when talking to the container registry or 
 ## EXAMPLES
 
 ```powershell
-skopeo-win logout registry.example.com
-skopeo-win logout --authfile .\auth.json registry.example.com
-skopeo-win logout --all
+skopeo logout registry.example.com
+skopeo logout --authfile .\auth.json registry.example.com
+skopeo logout --all
 ```
 
 ## SEE ALSO

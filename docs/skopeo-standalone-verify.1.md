@@ -4,7 +4,7 @@
 skopeo\-standalone\-verify - Debugging tool - Verify an image signature from local files.
 
 ## SYNOPSIS
-**skopeo-win standalone-verify** _manifest_ _docker-reference_ _key-fingerprints_ _signature_
+**skopeo standalone-verify** _manifest_ _docker-reference_ _key-fingerprints_ _signature_
 
 ## DESCRIPTION
 
@@ -39,7 +39,7 @@ File containing the public keys to use when verifying signatures. If this is not
 Use the expected image identity and the fingerprint of a trusted signing key:
 
 ```powershell
-skopeo-win standalone-verify --public-key-file .\public-key.asc .\manifest.json registry.example.com/team/nginx 1D8230F6CDB6A06716E414C1DB72F2188BB46CC8 .\image.signature
+skopeo standalone-verify --public-key-file .\public-key.asc .\manifest.json registry.example.com/team/nginx 1D8230F6CDB6A06716E414C1DB72F2188BB46CC8 .\image.signature
 ```
 
 ## NOTES

@@ -4,7 +4,7 @@
 skopeo\-copy - Copy an image (manifest, filesystem layers, signatures) from one location to another.
 
 ## SYNOPSIS
-**skopeo-win copy** [*options*] _source-image_ _destination-image_
+**skopeo copy** [*options*] _source-image_ _destination-image_
 
 ## DESCRIPTION
 Copy an image (manifest, filesystem layers, signatures) from one location to another.
@@ -38,7 +38,7 @@ Path of the primary registry credentials file. On Windows, the default is
 `$env:USERPROFILE\.config\containers\auth.json`. Override it with `--authfile`
 or `$env:REGISTRY_AUTH_FILE`.
 
-Use `skopeo-win login` to manage the credentials.
+Use `skopeo login` to manage the credentials.
 
 The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
@@ -106,7 +106,7 @@ Remove manifest-list signatures while preserving per-instance signatures. Mutual
 
 With a platform list in **--multi-arch**, omit unselected platforms from the destination manifest list. The default retains their entries and creates a sparse list. Stripping changes the list digest; use **--remove-list-signatures** to preserve instance signatures, or **--remove-signatures** to remove all signatures. Signed lists cannot be modified without explicit signature removal. **--preserve-digests** prevents changes to the list.
 
-Example: `skopeo-win copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures docker://registry.example.com/team/image:latest docker://mirror.example.com/team/image:latest`
+Example: `skopeo copy --multi-arch=windows/amd64 --strip-removed-platforms --remove-list-signatures docker://registry.example.com/team/image:latest docker://mirror.example.com/team/image:latest`
 
 **--download-foreign-layers**
 
@@ -264,20 +264,20 @@ Run these commands in PowerShell. Public-source examples use Docker Official Ima
 
 ```powershell
 # Save a Docker archive or separate image files.
-skopeo-win copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
-skopeo-win copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
+skopeo copy docker://docker.io/library/nginx:latest 'docker-archive:.\nginx.tar:nginx:latest'
+skopeo copy docker://docker.io/library/nginx:latest "dir:$PWD\nginx"
 
 # Create a named OCI layout using an absolute Windows path.
-skopeo-win copy docker://docker.io/library/nginx:latest "oci:$PWD\nginx-oci:latest"
+skopeo copy docker://docker.io/library/nginx:latest "oci:$PWD\nginx-oci:latest"
 
 # Publish every platform to a registry you can write to.
-skopeo-win login registry.example.com
-skopeo-win copy --all docker://docker.io/library/nginx:latest docker://registry.example.com/team/nginx:latest
+skopeo login registry.example.com
+skopeo copy --all docker://docker.io/library/nginx:latest docker://registry.example.com/team/nginx:latest
 ```
 
 Private registries and local image sources require an appropriate source trust
 policy; see the [Windows guide](../WINDOWS.md#image-trust-policy). Use
-`skopeo-win copy --help` for signing/encryption and advanced copy options.
+`skopeo copy --help` for signing/encryption and advanced copy options.
 
 ## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-policy.json(5), containers-transports(5), containers-signature(5)
