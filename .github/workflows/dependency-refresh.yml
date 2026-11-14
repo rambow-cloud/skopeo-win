@@ -29,7 +29,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "$Operation failed ($LASTEXITCODE)" }
           }
           go version
-          go mod edit -go=1.27.4
+          go mod edit '-go=1.27.4'
           Assert-Native 'Set production Go version'
           go mod download
           Assert-Native 'Download original modules'
@@ -74,7 +74,7 @@ jobs:
           }
           Push-Location tests/windows
           try {
-            go mod edit -go=1.27.4
+            go mod edit '-go=1.27.4'
             Assert-Native 'Set integration Go version'
             go get -u ./...
             Assert-Native 'Upgrade integration dependencies'
