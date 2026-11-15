@@ -4,12 +4,16 @@ import (
 	"debug/buildinfo"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/google/go-containerregistry/pkg/registry"
 )
 
 func TestRegistryAPIErrorRetries(t *testing.T) {
@@ -57,7 +61,11 @@ func TestRegistryAPIErrorRetries(t *testing.T) {
 				case "sync":
 					args = append(args, "--src=docker", "--dest=dir", "--src-tls-verify=false", ref, filepath.Join(c.root, "mirror"))
 				}
-				result := c.execute(t, message, nil, args...)
+				want := message
+				if tc.status == http.StatusServiceUnavailable {
+					want = "503"
+				}
+				result := c.execute(t, want, nil, args...)
 				if result.exitCode != 1 || attempts.Load() != tc.attempts {
 					t.Fatalf("wrong registry error/retry behavior: code=%d attempts=%d want=%d stderr=%s", result.exitCode, attempts.Load(), tc.attempts, result.stderr)
 				}
@@ -100,3 +108,70 @@ func TestReleaseRegistryDependencyGraph(t *testing.T) {
 		})
 	}
 }
+
+func TestRegistryMissingBlobError(t *testing.T) {
+	c, f := newCLI(t), makeFixture(t)
+	backend := registry.New(registry.Logger(log.New(io.Discard, "", 0)))
+	var failBlob atomic.Bool
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if failBlob.Load() && r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/blobs/"+f.layerDigest) {
+			requests.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"errors":[{"code":"BLOB_UNKNOWN","message":"fixture-layer-missing"}]}`))
+			return
+		}
+		backend.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+	ref := "docker://" + strings.TrimPrefix(server.URL, "http://") + "/team/image:stable"
+	c.run(t, "", "copy", "--all", "--dest-tls-verify=false", "dir:"+f.dir, ref)
+	failBlob.Store(true)
+	result := c.execute(t, "fixture-layer-missing", nil, "copy", "--retry-times=0", "--src-tls-verify=false", ref, "dir:"+filepath.Join(c.root, "missing-layer"))
+	if result.exitCode != 1 || requests.Load() == 0 {
+		t.Fatalf("missing blob did not fail through registry API: requests=%d stderr=%s", requests.Load(), result.stderr)
+	}
+}
+
+func TestRegistryBlobMirrorFallback(t *testing.T) {
+	c, f := newCLI(t), makeFixture(t)
+	originBackend := registry.New(registry.Logger(log.New(io.Discard, "", 0)))
+	mirrorBackend := registry.New(registry.Logger(log.New(io.Discard, "", 0)))
+	var failMirror atomic.Bool
+	var originReads, mirrorFailures atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/blobs/"+f.layerDigest) {
+			originReads.Add(1)
+		}
+		originBackend.ServeHTTP(w, r)
+	}))
+	defer origin.Close()
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if failMirror.Load() && r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/blobs/"+f.layerDigest) {
+			mirrorFailures.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"errors":[{"code":"BLOB_UNKNOWN","message":"fixture-mirror-layer-missing"}]}`))
+			return
+		}
+		mirrorBackend.ServeHTTP(w, r)
+	}))
+	defer mirror.Close()
+	originHost, mirrorHost := strings.TrimPrefix(origin.URL, "http://"), strings.TrimPrefix(mirror.URL, "http://")
+	for _, host := range []string{originHost, mirrorHost} {
+		c.run(t, "", "copy", "--all", "--dest-tls-verify=false", "dir:"+f.dir, "docker://"+host+"/team/image:stable")
+	}
+	config := fmt.Sprintf("unqualified-search-registries = []\n[[registry]]\nprefix = \"registry.example.test/team\"\nlocation = %q\ninsecure = true\n[[registry.mirror]]\nlocation = %q\ninsecure = true\n", originHost+"/team", mirrorHost+"/team")
+	write(t, filepath.Join(c.root, "registries.conf"), []byte(config))
+	failMirror.Store(true)
+	dest := filepath.Join(c.root, "recovered")
+	c.run(t, "", "copy", "--retry-times=0", "--src-tls-verify=false", "docker://registry.example.test/team/image:stable", "dir:"+dest)
+	if mirrorFailures.Load() == 0 || originReads.Load() == 0 {
+		t.Fatalf("blob fallback was not exercised: mirror=%d origin=%d", mirrorFailures.Load(), originReads.Load())
+	}
+	if got := hash(read(t, filepath.Join(dest, encoded(f.layerDigest)))); got != f.layerDigest {
+		t.Fatalf("fallback layer digest mismatch: %s", got)
+	}
+}
+
