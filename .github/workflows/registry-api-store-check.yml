@@ -1,0 +1,45 @@
+name: Registry API Store verification
+on:
+  push:
+    branches: [codex/issue69-store-check]
+    paths: [.github/workflows/registry-api-store-check.yml]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: f8d1035d56e43fe5db191badf893af4c7b9dcde5
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify exact reviewed source provenance
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./hack/verify-module-sources.ps1
+      - name: Build package test binaries
+        shell: pwsh
+        run: |
+          ./build-windows.ps1 -Architecture amd64,arm64 -Version 1.0.17
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot build test binaries' }
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot install scanner' }
+      - name: Verify Store packages and reviewed-fork notices
+        shell: pwsh
+        run: |
+          ./build-store.ps1 -Version 1.0.17 -Scanner govulncheck
+          ./hack/test-store-package.ps1 -Bundle dist-store/skopeo-win-1.0.17.0.msixbundle -Version 1.0.17
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: registry-api-store-verification
+          path: |
+            dist-store/verification.json
+            .cache/vulnerability-scan/*.txt
+          include-hidden-files: true
