@@ -18,7 +18,7 @@ try {
     $env:GOOS = "windows"
     $env:GOARCH = "amd64"
 
-    & $scannerPath -tags "containers_image_openpgp,exclude_graphdriver_btrfs" ./cmd/skopeo ./cmd/store-launcher 2>&1 |
+    & $scannerPath -show verbose -tags "containers_image_openpgp,exclude_graphdriver_btrfs" ./cmd/skopeo ./cmd/store-launcher 2>&1 |
         Tee-Object -FilePath (Join-Path $reportDirectory "source.txt")
     if ($LASTEXITCODE -ne 0) {
         throw "Source vulnerability scan failed. See .cache/vulnerability-scan/source.txt"
@@ -32,7 +32,7 @@ try {
         # Reject findings in packages present in the binary, including functions
         # the source call graph may not reach. Do not fail for unimported packages
         # merely sharing a module (for example, the removed x/crypto/openpgp).
-        & $scannerPath -mode binary -scan package $binary 2>&1 |
+        & $scannerPath -show verbose -mode binary -scan package $binary 2>&1 |
             Tee-Object -FilePath (Join-Path $reportDirectory "binary-$arch.txt")
         if ($LASTEXITCODE -ne 0) {
             throw "Binary vulnerability scan failed for $arch"

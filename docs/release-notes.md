@@ -1,5 +1,7 @@
 ## Features
 
+- **Reviewed dependency updates:** Renovate Community Cloud tracks both Go modules, the Go toolchain, pinned GitHub Actions and the vulnerability scanner. Compatible updates are grouped, major updates require dashboard approval and security updates bypass the weekly schedule. Pull requests remain subject to review, Windows compatibility checks and vulnerability gates. Source/binary scan reports include advisory details to distinguish affected code from unused module packages.
+
 - **Dependency maintenance:** production and Windows integration tests use Go 1.27.4, including the latest Go security fixes. Updated compatible container-image, storage, cryptography, authentication and Windows integration dependencies; retained the Windows archive-path compatibility patch. Release and Store publication still require a manual stable tag.
 
 - **Windows archive paths:** Docker archives accept absolute drive-letter paths with spaces and either slash style, alongside relative paths, tags and source indexes. `list-tags` reads those archives too. OCI layouts/archives share Windows-aware path splitting, including named relative paths. Executable tests cover real archive exports/restores and layer integrity; relative archive workarounds are no longer required.
