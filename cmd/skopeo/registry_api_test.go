@@ -10,8 +10,8 @@ import (
 
 func TestRegistryErrorTypeIdentity(t *testing.T) {
 	for _, tc := range []struct {
-		code errcode.ErrorCode
-		retryable bool
+		code            errcode.ErrorCode
+		retryable       bool
 		missingManifest bool
 	}{
 		{errcode.ErrorCodeUnauthorized, false, false},

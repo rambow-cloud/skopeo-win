@@ -17,15 +17,15 @@ import (
 
 // ReviewedSource binds a versioned remote fork to reviewed, byte-exact vendor sources.
 type ReviewedSource struct {
-	Module string `json:"module"`
-	Version string `json:"version"`
-	Replacement Module `json:"replacement"`
-	Repository string `json:"repository"`
-	Commit string `json:"commit"`
-	Directory string `json:"directory"`
+	Module             string `json:"module"`
+	Version            string `json:"version"`
+	Replacement        Module `json:"replacement"`
+	Repository         string `json:"repository"`
+	Commit             string `json:"commit"`
+	Directory          string `json:"directory"`
 	UpstreamRepository string `json:"upstreamRepository"`
-	UpstreamCommit string `json:"upstreamCommit"`
-	VendorSHA256 string `json:"vendorSHA256"`
+	UpstreamCommit     string `json:"upstreamCommit"`
+	VendorSHA256       string `json:"vendorSHA256"`
 }
 
 var sourceCommitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)

@@ -11,7 +11,7 @@
     "directory": "image",
     "upstreamRepository": "https://github.com/podman-container-tools/container-libs",
     "upstreamCommit": "b84f98ed7c960897cec6c0746175f0bd1250ce55",
-    "vendorSHA256": ""
+    "vendorSHA256": "5664d7c1a551f869ab43942aafa45ae3abdef47e1c9759d481319c85bacbf7cf"
   },
   {
     "module": "go.podman.io/common",
@@ -25,6 +25,6 @@
     "directory": "common",
     "upstreamRepository": "https://github.com/podman-container-tools/container-libs",
     "upstreamCommit": "aeae833eac4f040283ef7ab507e88048c10f86db",
-    "vendorSHA256": ""
+    "vendorSHA256": "40e7c900265a10ae6fa0bef6435284396f528c6119faa9f678d9d2aa3a1ddca4"
   }
 ]

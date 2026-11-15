@@ -22,8 +22,8 @@ import (
 const Directory = "ThirdPartyNotices"
 
 type Module struct {
-	Path    string `json:"path"`
-	Version string `json:"version"`
+	Path        string  `json:"path"`
+	Version     string  `json:"version"`
 	Replacement *Module `json:"replacement,omitempty"`
 }
 
@@ -43,10 +43,10 @@ type Notice struct {
 
 type Component struct {
 	Module
-	SourceURL string   `json:"sourceUrl"`
-	Notices   []Notice `json:"notices"`
-	UpstreamSourceURL string `json:"upstreamSourceUrl,omitempty"`
-	VendorSourceSHA256 string `json:"vendorSourceSHA256,omitempty"`
+	SourceURL          string   `json:"sourceUrl"`
+	Notices            []Notice `json:"notices"`
+	UpstreamSourceURL  string   `json:"upstreamSourceUrl,omitempty"`
+	VendorSourceSHA256 string   `json:"vendorSourceSHA256,omitempty"`
 }
 
 type Inventory struct {
