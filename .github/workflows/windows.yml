@@ -55,6 +55,11 @@ jobs:
       - name: Verify English-only documentation
         shell: pwsh
         run: ./hack/verify-no-chinese-docs.ps1
+      - name: Verify reviewed dependency sources and legacy module removal
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./hack/verify-module-sources.ps1
       - name: Build and verify versioned pure-Go binaries
         shell: pwsh
         env:

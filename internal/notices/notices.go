@@ -24,6 +24,7 @@ const Directory = "ThirdPartyNotices"
 type Module struct {
 	Path    string `json:"path"`
 	Version string `json:"version"`
+	Replacement *Module `json:"replacement,omitempty"`
 }
 
 type Binary struct {
@@ -44,6 +45,8 @@ type Component struct {
 	Module
 	SourceURL string   `json:"sourceUrl"`
 	Notices   []Notice `json:"notices"`
+	UpstreamSourceURL string `json:"upstreamSourceUrl,omitempty"`
+	VendorSourceSHA256 string `json:"vendorSourceSHA256,omitempty"`
 }
 
 type Inventory struct {
@@ -141,14 +144,25 @@ func readInputs(layout string) ([]input, error) {
 	return inputs, nil
 }
 
-func vendorVersions(data []byte) (map[string]string, error) {
+func vendorVersions(data []byte, sources map[string]ReviewedSource) (map[string]string, error) {
 	versions := map[string]string{}
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
 		if len(fields) >= 3 && fields[0] == "#" {
 			if slices.Contains(fields, "=>") {
-				return nil, fmt.Errorf("replacement modules require a separate notice-source review")
+				source, reviewed := sources[fields[1]]
+				if !reviewed {
+					return nil, fmt.Errorf("replacement modules require a separate notice-source review")
+				}
+				if len(fields) == 5 && fields[2] == "=>" && fields[3] == source.Replacement.Path && fields[4] == source.Replacement.Version && versions[fields[1]] == source.Version {
+					continue // Matching unversioned replacement footer.
+				}
+				if len(fields) != 6 || fields[2] != source.Version || fields[3] != "=>" || fields[4] != source.Replacement.Path || fields[5] != source.Replacement.Version {
+					return nil, fmt.Errorf("vendor replacement differs from reviewed source %s", fields[1])
+				}
+			} else if _, reviewed := sources[fields[1]]; reviewed {
+				return nil, fmt.Errorf("reviewed fork %s is missing from vendor manifest", fields[1])
 			}
 			if _, exists := versions[fields[1]]; exists {
 				return nil, fmt.Errorf("duplicate vendor module %q", fields[1])
@@ -275,7 +289,17 @@ func buildFiles(repository, goroot string, inputs []input) (map[string][]byte, e
 	if err != nil {
 		return nil, err
 	}
-	versions, err := vendorVersions(vendorData)
+	sources, err := loadReviewedSources(repository)
+	if err != nil {
+		return nil, err
+	}
+	for module, source := range sources {
+		actual, err := SourceDigest(filepath.Join(repository, "vendor", filepath.FromSlash(module)))
+		if err != nil || actual != source.VendorSHA256 {
+			return nil, fmt.Errorf("vendored sources differ from reviewed fork %s", module)
+		}
+	}
+	versions, err := vendorVersions(vendorData, sources)
 	if err != nil {
 		return nil, err
 	}
@@ -289,18 +313,28 @@ func buildFiles(repository, goroot string, inputs []input) (map[string][]byte, e
 	}
 	goVersion := toolchainFields[0]
 	inventory := Inventory{SchemaVersion: 1, VendorManifestSHA256: digest(vendorData)}
-	modules := map[string]string{}
+	modules := map[string]Module{}
 	for _, in := range inputs {
 		if in.info.GoVersion != goVersion {
 			return nil, fmt.Errorf("%s uses %s, notice sources use %s; historical packaging requires matching Go and dependency sources", in.binary.File, in.info.GoVersion, goVersion)
 		}
 		binary := in.binary
 		for _, module := range in.info.Deps {
-			if module.Replace != nil || module.Version == "" || versions[module.Path] != module.Version || !fs.ValidPath(module.Path) || strings.ContainsAny(module.Path, `:\`) {
+			if module.Version == "" || versions[module.Path] != module.Version || !fs.ValidPath(module.Path) || strings.ContainsAny(module.Path, `:\`) {
 				return nil, fmt.Errorf("cannot match dependency %s@%s in %s to vendor/modules.txt; use a matching source checkout", module.Path, module.Version, binary.File)
 			}
-			modules[module.Path] = module.Version
-			binary.Modules = append(binary.Modules, Module{module.Path, module.Version})
+			record := Module{Path: module.Path, Version: module.Version}
+			source, reviewed := sources[module.Path]
+			if module.Replace != nil {
+				if !reviewed || module.Replace.Path != source.Replacement.Path || module.Replace.Version != source.Replacement.Version || module.Replace.Replace != nil {
+					return nil, fmt.Errorf("binary replacement differs from reviewed source %s", module.Path)
+				}
+				record.Replacement = &Module{Path: module.Replace.Path, Version: module.Replace.Version}
+			} else if reviewed {
+				return nil, fmt.Errorf("binary is missing reviewed source replacement %s", module.Path)
+			}
+			modules[module.Path] = record
+			binary.Modules = append(binary.Modules, record)
 		}
 		slices.SortFunc(binary.Modules, func(a, b Module) int { return strings.Compare(a.Path, b.Path) })
 		inventory.Binaries = append(inventory.Binaries, binary)
@@ -318,7 +352,7 @@ func buildFiles(repository, goroot string, inputs []input) (map[string][]byte, e
 	if err != nil {
 		return nil, err
 	}
-	inventory.Components = append(inventory.Components, Component{Module{"go", goVersion}, "https://go.dev/dl/#" + goVersion, goNotices})
+	inventory.Components = append(inventory.Components, Component{Module: Module{Path: "go", Version: goVersion}, SourceURL: "https://go.dev/dl/#" + goVersion, Notices: goNotices})
 	paths := make([]string, 0, len(modules))
 	for module := range modules {
 		paths = append(paths, module)
@@ -336,7 +370,13 @@ func buildFiles(repository, goroot string, inputs []input) (map[string][]byte, e
 		for name, data := range moduleFiles {
 			files[name] = data
 		}
-		inventory.Components = append(inventory.Components, Component{Module{module, modules[module]}, "https://pkg.go.dev/" + module + "@" + modules[module], notices})
+		component := Component{Module: modules[module], SourceURL: "https://pkg.go.dev/" + module + "@" + modules[module].Version, Notices: notices}
+		if source, reviewed := sources[module]; reviewed {
+			component.SourceURL = source.Repository + "/tree/" + source.Commit + "/" + source.Directory
+			component.UpstreamSourceURL = source.UpstreamRepository + "/tree/" + source.UpstreamCommit + "/" + source.Directory
+			component.VendorSourceSHA256 = source.VendorSHA256
+		}
+		inventory.Components = append(inventory.Components, component)
 	}
 	encoded, err := json.MarshalIndent(inventory, "", "  ")
 	if err != nil {

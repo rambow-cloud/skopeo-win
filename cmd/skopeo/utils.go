@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	dockerdistributionerrcode "github.com/docker/distribution/registry/api/errcode"
-	dockerdistributionapi "github.com/docker/distribution/registry/api/v2"
+	dockerdistributionerrcode "github.com/distribution/distribution/v3/registry/api/errcode"
+	dockerdistributionapi "github.com/distribution/distribution/v3/registry/api/v2"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

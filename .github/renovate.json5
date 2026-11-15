@@ -65,7 +65,7 @@
         "gomod"
       ],
       "prBodyNotes": [
-        "Regenerating vendor restores upstream files. Reapply hack/vendor-patches/image-windows-archive-paths.patch and preserve English-only documentation before merging. Windows archive integration tests must pass.",
+        "Reviewed image/common source forks already include the Windows archive fix. Do not remove their pinned replacements or apply the old patch twice; update packaging/store/module-sources.json and its exact source digests only after reviewing the new source commits.",
         "Go version updates must include the exact official LICENSE/PATENTS snapshot under packaging/store/go-notices/<goVersion> and pass Store package verification."
       ]
     },
@@ -82,6 +82,17 @@
       "matchUpdateTypes": [
         "major"
       ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Coordinate reviewed library baselines and source fork versions",
+      "matchDepNames": [
+        "go.podman.io/common",
+        "go.podman.io/image/v5",
+        "github.com/rambow-cloud/container-libs/common",
+        "github.com/rambow-cloud/container-libs/image/v5"
+      ],
+      "groupName": "Reviewed container libraries",
       "dependencyDashboardApproval": true
     }
   ],

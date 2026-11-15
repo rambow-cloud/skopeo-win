@@ -10,6 +10,7 @@ $scannerPath = (Get-Command $Scanner -ErrorAction Stop).Source
 $oldCgo = $env:CGO_ENABLED
 $oldGoos = $env:GOOS
 $oldGoarch = $env:GOARCH
+$oldGoFlags = $env:GOFLAGS
 Push-Location -LiteralPath (Split-Path -Parent $PSScriptRoot)
 try {
     $reportDirectory = Join-Path (Get-Location) ".cache/vulnerability-scan"
@@ -38,9 +39,26 @@ try {
             throw "Binary vulnerability scan failed for $arch"
         }
     }
+    # Fork module paths are not indexed under upstream advisory identities.
+    # Scan canonical upstream sources at the exact reviewed base versions too;
+    # this prevents a replacement from hiding a known upstream vulnerability.
+    $sources = @(Get-Content -Raw -LiteralPath 'packaging/store/module-sources.json' | ConvertFrom-Json)
+    $auditMod = '.cache/vulnerability-scan/upstream.go.mod'
+    Copy-Item -LiteralPath go.mod -Destination $auditMod
+    Copy-Item -LiteralPath go.sum -Destination '.cache/vulnerability-scan/upstream.go.sum'
+    foreach ($source in $sources) {
+        go mod edit "-modfile=$auditMod" "-dropreplace=$($source.module)"
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot prepare canonical upstream vulnerability audit' }
+    }
+    $env:GOFLAGS = "-mod=mod -modfile=$auditMod"
+    $env:GOARCH = 'amd64'
+    & $scannerPath -show verbose -tags "containers_image_openpgp,exclude_graphdriver_btrfs" ./cmd/skopeo ./cmd/store-launcher 2>&1 |
+        Tee-Object -FilePath (Join-Path $reportDirectory 'upstream-source-audit.txt')
+    if ($LASTEXITCODE -ne 0) { throw 'Canonical upstream vulnerability audit failed; review the fork baseline' }
 } finally {
     $env:CGO_ENABLED = $oldCgo
     $env:GOOS = $oldGoos
     $env:GOARCH = $oldGoarch
+    $env:GOFLAGS = $oldGoFlags
     Pop-Location
 }
