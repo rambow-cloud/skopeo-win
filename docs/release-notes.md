@@ -1,5 +1,7 @@
 ## Features
 
+- **Dependency maintenance:** production and Windows integration tests use Go 1.27.4, including the latest Go security fixes. Updated compatible container-image, storage, cryptography, authentication and Windows integration dependencies; retained the Windows archive-path compatibility patch. Release and Store publication still require a manual stable tag.
+
 - **Windows archive paths:** Docker archives accept absolute drive-letter paths with spaces and either slash style, alongside relative paths, tags and source indexes. `list-tags` reads those archives too. OCI layouts/archives share Windows-aware path splitting, including named relative paths. Executable tests cover real archive exports/restores and layer integrity; relative archive workarounds are no longer required.
 
 - **Short Windows command:** use `skopeo` in the terminal, documentation and PowerShell completion. Store packages expose only `skopeo.exe`; portable downloads can be renamed to `skopeo.exe`.
