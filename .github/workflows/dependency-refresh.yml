@@ -91,7 +91,8 @@ jobs:
           Write-Host "Vulnerability scanner: $scanner"
           git diff --stat
           git diff -- go.mod tests/windows/go.mod .github/workflows/windows.yml
-          git diff --check
+          # Preserve third-party formatting, including README heading underlines.
+          git diff --check -- . ':!vendor'
           Assert-Native 'Check generated patch whitespace'
       - name: Push prepared dependency changes
         shell: pwsh
