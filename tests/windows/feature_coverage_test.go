@@ -111,7 +111,11 @@ func TestDurationAndCrossPlatformHelp(t *testing.T) {
 	for _, duration := range []string{"30s", "10m"} {
 		c.run(t, "", "--command-timeout="+duration, "--version")
 	}
-	c.run(t, "invalid duration", "--command-timeout=invalid", "--version")
+	r := c.executeExact(t, "duration", nil, "--command-timeout=invalid", "--version")
+	if r.exitCode != 1 || len(r.stdout) != 0 || !strings.Contains(string(r.stderr), "--command-timeout") || !strings.Contains(string(r.stderr), "invalid") {
+		t.Fatalf("invalid timeout did not identify the rejected flag/value: code=%d stdout=%s stderr=%s", r.exitCode, r.stdout, r.stderr)
+	}
+	assertNoDefaultPolicy(t, c.root)
 	for _, command := range []string{"copy", "sync"} {
 		output := string(c.run(t, "", command, "--help"))
 		for _, flag := range []string{"--remove-list-signatures", "--download-foreign-layers"} {
