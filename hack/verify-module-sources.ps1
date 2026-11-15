@@ -6,6 +6,8 @@ $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
 Push-Location $repository
 $oldCgo = $env:CGO_ENABLED
+$beforeMod = (Get-FileHash -LiteralPath go.mod -Algorithm SHA256).Hash
+$beforeSum = (Get-FileHash -LiteralPath go.sum -Algorithm SHA256).Hash
 try {
     $env:CGO_ENABLED = '0'
     $sources = @(Get-Content -Raw -LiteralPath packaging/store/module-sources.json | ConvertFrom-Json)
@@ -42,8 +44,8 @@ try {
     if ($LASTEXITCODE -ne 0 -or @($packages | Where-Object { $_ -match '^github.com/(docker|distribution)/distribution(/|$)' -and $_ -notmatch '^github.com/distribution/distribution/v3/' }).Count) {
         throw 'Legacy Distribution remains in the production import graph'
     }
-    git diff --exit-code -- go.mod go.sum
-    if ($LASTEXITCODE -ne 0) { throw 'Source verification changed the recorded module graph' }
+    if ((Get-FileHash -LiteralPath go.mod -Algorithm SHA256).Hash -cne $beforeMod -or
+        (Get-FileHash -LiteralPath go.sum -Algorithm SHA256).Hash -cne $beforeSum) { throw 'Source verification changed the recorded module graph' }
     Write-Host 'Verified complete module and executable import graphs exclude legacy Distribution.'
 } finally {
     $env:CGO_ENABLED = $oldCgo
