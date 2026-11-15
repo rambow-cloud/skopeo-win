@@ -12,8 +12,10 @@
   "schedule": [
     "before 6am on monday"
   ],
-  "dependencyDashboard": true,
-  "dependencyDashboardTitle": "Dependency Dashboard",
+  "dependencyDashboard": {
+    "enabled": true,
+    "title": "Dependency Dashboard"
+  },
   "automerge": false,
   "prConcurrentLimit": 4,
   "prHourlyLimit": 2,
