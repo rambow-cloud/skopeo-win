@@ -22,12 +22,13 @@ func TestRegistryAPIErrorRetries(t *testing.T) {
 			code     string
 			status   int
 			attempts int32
+			exitCode int
 		}{
-			{"UNAUTHORIZED", http.StatusUnauthorized, 1},
-			{"DENIED", http.StatusForbidden, 1},
-			{"NAME_UNKNOWN", http.StatusNotFound, 1},
-			{"MANIFEST_UNKNOWN", http.StatusNotFound, 1},
-			{"UNKNOWN", http.StatusServiceUnavailable, 3},
+			{"UNAUTHORIZED", http.StatusUnauthorized, 1, 1},
+			{"DENIED", http.StatusForbidden, 1, 1},
+			{"NAME_UNKNOWN", http.StatusNotFound, 1, 1},
+			{"MANIFEST_UNKNOWN", http.StatusNotFound, 1, 2},
+			{"UNKNOWN", http.StatusServiceUnavailable, 3, 1},
 		} {
 			t.Run(command+"/"+tc.code, func(t *testing.T) {
 				c := newCLI(t)
@@ -66,7 +67,7 @@ func TestRegistryAPIErrorRetries(t *testing.T) {
 					want = "503"
 				}
 				result := c.execute(t, want, nil, args...)
-				if result.exitCode != 1 || attempts.Load() != tc.attempts {
+				if result.exitCode != tc.exitCode || attempts.Load() != tc.attempts {
 					t.Fatalf("wrong registry error/retry behavior: code=%d attempts=%d want=%d stderr=%s", result.exitCode, attempts.Load(), tc.attempts, result.stderr)
 				}
 			})

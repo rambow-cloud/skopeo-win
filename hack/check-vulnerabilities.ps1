@@ -52,7 +52,7 @@ try {
     }
     $env:GOFLAGS = "-mod=mod -modfile=$auditMod"
     $env:GOARCH = 'amd64'
-    & $scannerPath -show verbose -tags "containers_image_openpgp,exclude_graphdriver_btrfs" ./cmd/skopeo ./cmd/store-launcher 2>&1 |
+    & $scannerPath -show verbose -scan package -tags "containers_image_openpgp,exclude_graphdriver_btrfs" ./cmd/skopeo ./cmd/store-launcher 2>&1 |
         Tee-Object -FilePath (Join-Path $reportDirectory 'upstream-source-audit.txt')
     if ($LASTEXITCODE -ne 0) { throw 'Canonical upstream vulnerability audit failed; review the fork baseline' }
 } finally {
