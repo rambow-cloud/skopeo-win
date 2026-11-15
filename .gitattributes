@@ -3,3 +3,7 @@
 /tests/windows/fixtures/** -text
 # Preserve the bytes pinned in Go notice provenance records.
 /packaging/store/go-notices/** -text
+
+# Reviewed fork source digests must remain byte-identical across checkouts.
+/vendor/go.podman.io/common/** -text
+/vendor/go.podman.io/image/** -text

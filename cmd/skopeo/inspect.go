@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"

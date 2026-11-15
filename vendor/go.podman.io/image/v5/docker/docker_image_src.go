@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/registry/api/errcode"
-	v2 "github.com/docker/distribution/registry/api/v2"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
+	v2 "github.com/distribution/distribution/v3/registry/api/v2"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/docker/reference"

@@ -144,13 +144,13 @@ github.com/cyphar/filepath-securejoin/pathrs-lite/internal/kernelversion
 github.com/cyphar/filepath-securejoin/pathrs-lite/internal/linux
 github.com/cyphar/filepath-securejoin/pathrs-lite/internal/procfs
 github.com/cyphar/filepath-securejoin/pathrs-lite/procfs
+# github.com/distribution/distribution/v3 v3.1.2
+## explicit; go 1.26.0
+github.com/distribution/distribution/v3/registry/api/errcode
+github.com/distribution/distribution/v3/registry/api/v2
 # github.com/distribution/reference v0.6.0
 ## explicit; go 1.20
 github.com/distribution/reference
-# github.com/docker/distribution v2.8.3+incompatible
-## explicit
-github.com/docker/distribution/registry/api/errcode
-github.com/docker/distribution/registry/api/v2
 # github.com/docker/docker-credential-helpers v0.9.13
 ## explicit; go 1.21
 github.com/docker/docker-credential-helpers/client
@@ -431,7 +431,7 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# go.podman.io/common v0.70.0
+# go.podman.io/common v0.70.0 => github.com/rambow-cloud/container-libs/common v0.70.0-skopeo.1
 ## explicit; go 1.26.0
 go.podman.io/common/pkg/auth
 go.podman.io/common/pkg/capabilities
@@ -442,7 +442,7 @@ go.podman.io/common/pkg/password
 go.podman.io/common/pkg/report
 go.podman.io/common/pkg/report/camelcase
 go.podman.io/common/pkg/retry
-# go.podman.io/image/v5 v5.42.1
+# go.podman.io/image/v5 v5.42.1 => github.com/rambow-cloud/container-libs/image/v5 v5.42.1-skopeo.1
 ## explicit; go 1.26.0
 go.podman.io/image/v5/copy
 go.podman.io/image/v5/directory
@@ -746,3 +746,5 @@ google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
+# go.podman.io/image/v5 => github.com/rambow-cloud/container-libs/image/v5 v5.42.1-skopeo.1
+# go.podman.io/common => github.com/rambow-cloud/container-libs/common v0.70.0-skopeo.1

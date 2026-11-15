@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/distribution/registry/api/errcode"
-	errcodev2 "github.com/docker/distribution/registry/api/v2"
+	"github.com/distribution/distribution/v3/registry/api/errcode"
+	errcodev2 "github.com/distribution/distribution/v3/registry/api/v2"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/docker"

@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/ProtonMail/go-crypto v1.5.2
 	github.com/containers/ocicrypt v1.3.2
-	github.com/docker/distribution v2.8.3+incompatible
+	github.com/distribution/distribution/v3 v3.1.2
 	github.com/moby/sys/capability v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.2-0.20260226102121-a4c6ade7bb82
@@ -111,3 +111,7 @@ require (
 	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
+
+replace go.podman.io/image/v5 => github.com/rambow-cloud/container-libs/image/v5 v5.42.1-skopeo.1
+
+replace go.podman.io/common => github.com/rambow-cloud/container-libs/common v0.70.0-skopeo.1
