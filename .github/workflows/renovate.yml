@@ -1,0 +1,26 @@
+name: Renovate configuration
+on:
+  pull_request:
+    paths:
+      - .github/renovate.json5
+      - .github/workflows/renovate.yml
+  push:
+    branches: [main]
+    paths:
+      - .github/renovate.json5
+      - .github/workflows/renovate.yml
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Validate with the official Renovate validator
+        run: npx --yes --package=renovate@44.239.1 renovate-config-validator --strict .github/renovate.json5

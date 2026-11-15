@@ -1,5 +1,7 @@
 ## Features
 
+- **Reviewed dependency updates:** Renovate Community Cloud tracks both Go modules, the Go toolchain, pinned GitHub Actions and the vulnerability scanner. Compatible updates are grouped, major updates require dashboard approval and security updates bypass the weekly schedule. Pull requests remain subject to review, Windows compatibility checks and vulnerability gates. Source/binary scan reports include advisory details to distinguish affected code from unused module packages.
+
 - **Dependency maintenance:** production and Windows integration tests use Go 1.27.4, including the latest Go security fixes. Updated compatible container-image, storage, cryptography, authentication and Windows integration dependencies; retained the Windows archive-path compatibility patch. Release and Store publication still require a manual stable tag.
 
 - **Windows archive paths:** Docker archives accept absolute drive-letter paths with spaces and either slash style, alongside relative paths, tags and source indexes. `list-tags` reads those archives too. OCI layouts/archives share Windows-aware path splitting, including named relative paths. Executable tests cover real archive exports/restores and layer integrity; relative archive workarounds are no longer required.
@@ -24,6 +26,8 @@
 Downloading a foreign layer does not guarantee a self-contained offline mirror: the current image library may retain external URLs in the manifest, and subsequent CLI pulls prefer those URLs even if the registry stores the layer. An unavailable external server can therefore still cause pulls to fail.
 
 ## Fixes and maintenance
+
+- **CVE scan scope:** production source and both Windows binaries have no affected imported packages or reachable vulnerabilities in the release scan. GO-2026-6778 / CVE-2026-85747 remains a module-level advisory for the legacy `github.com/docker/distribution` dependency: its vulnerable `registry/client` package is not imported or shipped; only API/error types are used. No patched v2 release is available. Coordinated removal of the legacy API dependency is tracked in [#69](https://github.com/rambow-cloud/skopeo-win/issues/69). This release includes the Go 1.27.4 security fixes and reviewed dependency updates without suppressing advisory checks.
 
 - **Invalid numeric option diagnostics:** negative command timeouts, retry counts and retry delays fail during flag parsing with the option name and range error on stderr (exit 1), before registry access or policy/output creation. Retry delays between 1ns and 9ns are rejected because the retry library cannot safely jitter them; 0 retains automatic backoff. Executable tests cover missing/unknown options, malformed typed values, argument counts, retry boundaries and valid controls against a loopback service. Bare help remains successful.
 
