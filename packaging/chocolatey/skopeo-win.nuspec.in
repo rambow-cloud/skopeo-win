@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>skopeo-win</id>
+    <version>@VERSION@</version>
+    <title>Skopeo for Windows</title>
+    <authors>Rambow Cloud, Skopeo contributors</authors>
+    <projectUrl>https://github.com/rambow-cloud/skopeo-win</projectUrl>
+    <licenseUrl>https://github.com/rambow-cloud/skopeo-win/blob/@TAG@/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/rambow-cloud/skopeo-win</projectSourceUrl>
+    <packageSourceUrl>https://github.com/rambow-cloud/skopeo-win/tree/main/packaging/chocolatey</packageSourceUrl>
+    <bugTrackerUrl>https://github.com/rambow-cloud/skopeo-win/issues</bugTrackerUrl>
+    <docsUrl>https://github.com/rambow-cloud/skopeo-win/blob/@TAG@/WINDOWS.md</docsUrl>
+    <tags>skopeo containers docker oci registry cli portable windows</tags>
+    <summary>Inspect, copy and synchronize container images on Windows without a daemon.</summary>
+    <description>Independently maintained native Windows distribution of Skopeo. Inspect, copy and synchronize OCI and Docker images across registries, local directories and archives without a container daemon.
+
+Installs the skopeo command. Supports Windows x64 and ARM64; 32-bit Windows is unsupported. The package downloads the selected architecture from the publisher's versioned GitHub release and verifies its SHA256 checksum. It uses independent release numbering and does not require Docker Desktop.</description>
+    <releaseNotes>https://github.com/rambow-cloud/skopeo-win/releases/tag/@TAG@</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

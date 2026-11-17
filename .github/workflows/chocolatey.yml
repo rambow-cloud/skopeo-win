@@ -1,0 +1,91 @@
+name: Chocolatey package
+
+on:
+  pull_request:
+    paths:
+      - packaging/chocolatey/**
+      - hack/build-chocolatey.ps1
+      - hack/test-chocolatey.ps1
+      - .github/workflows/chocolatey.yml
+  push:
+    branches: [main]
+    paths:
+      - packaging/chocolatey/**
+      - hack/build-chocolatey.ps1
+      - hack/test-chocolatey.ps1
+      - .github/workflows/chocolatey.yml
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable GitHub release tag
+        required: true
+        default: v1.0.16
+        type: string
+      publish:
+        description: Submit the tested package to Chocolatey Community Repository
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chocolatey-${{ github.event_name == 'workflow_dispatch' && 'publication' || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build from verified stable release assets
+        id: build
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || 'v1.0.16' }}
+        run: ./hack/build-chocolatey.ps1 -Tag $env:RELEASE_TAG
+      - name: Test Chocolatey install, command shim and uninstall
+        shell: pwsh
+        env:
+          PACKAGE_DIRECTORY: ${{ steps.build.outputs.directory }}
+        run: ./hack/test-chocolatey.ps1 -PackageDirectory $env:PACKAGE_DIRECTORY -Install
+      - name: Retain package and release verification
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chocolatey-skopeo-win-${{ steps.build.outputs.version }}
+          path: |
+            ${{ steps.build.outputs.directory }}/*.nupkg
+            ${{ steps.build.outputs.directory }}/verification.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+  publish:
+    needs: package
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: chocolatey-skopeo-win-${{ needs.package.outputs.version }}
+          path: chocolatey-input
+      - name: Submit the tested package for moderation
+        shell: pwsh
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+          PACKAGE_VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CHOCOLATEY_API_KEY)) {
+            throw 'Configure the CHOCOLATEY_API_KEY repository secret before submitting.'
+          }
+          $package = "chocolatey-input/skopeo-win.$env:PACKAGE_VERSION.nupkg"
+          choco push $package --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Chocolatey package submission failed.' }
+          "Submitted skopeo-win $env:PACKAGE_VERSION for Chocolatey moderation." >> $env:GITHUB_STEP_SUMMARY
