@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$PackageDirectory,
-    [switch]$Install
+    [switch]$Install,
+    [switch]$SelectionOnly
 )
 $ErrorActionPreference = 'Stop'
 $toolsDir = Join-Path $PackageDirectory 'package/tools'
@@ -14,6 +15,7 @@ function Get-ChocolateyWebFile {
         (Split-Path -Leaf $FileFullPath) -cne 'skopeo.exe') { throw 'Invalid helper invocation.' }
     $downloads.Add(@{ url = $Url; sha256 = $Checksum })
 }
+if ($SelectionOnly) {
 $environmentNames = @('PROCESSOR_ARCHITECTURE', 'PROCESSOR_ARCHITEW6432', 'chocolateyForceX86')
 $savedEnvironment = @{}
 foreach ($name in $environmentNames) { $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
@@ -51,6 +53,12 @@ try {
     foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process') }
 }
 Write-Output 'PASS: four native/emulated architecture selections and two unsupported-architecture rejections.'
+return
+}
+# Keep simulated architecture variables out of the real Chocolatey child process.
+# Windows PowerShell also checks compatibility with Chocolatey's install host.
+& powershell.exe -NoProfile -NonInteractive -File $PSCommandPath -PackageDirectory $PackageDirectory -SelectionOnly
+if ($LASTEXITCODE -ne 0) { throw 'Installer architecture selection checks failed.' }
 if (-not $Install) { return }
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
     throw 'Real package installation tests require a disposable GitHub-hosted runner.'
