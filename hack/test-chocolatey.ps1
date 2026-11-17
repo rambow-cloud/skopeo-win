@@ -57,8 +57,12 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hoste
 }
 $shim = Join-Path $env:ChocolateyInstall 'bin/skopeo.exe'
 if (Test-Path -LiteralPath $shim) { throw 'An existing skopeo shim would be overwritten.' }
+Write-Output "Installer environment: process=$env:PROCESSOR_ARCHITECTURE native=$env:PROCESSOR_ARCHITEW6432 OS64=$([Environment]::Is64BitOperatingSystem)"
 & choco install skopeo-win --version $release.version --source $PackageDirectory --yes --no-progress --limit-output
-if ($LASTEXITCODE -ne 0) { throw 'Chocolatey installation failed.' }
+if ($LASTEXITCODE -ne 0) {
+    Get-Content -LiteralPath (Join-Path $env:ChocolateyInstall 'logs/chocolatey.log') -Tail 100
+    throw 'Chocolatey installation failed.'
+}
 try {
     if (-not (Test-Path -LiteralPath $shim)) { throw 'The skopeo shim was not created.' }
     $actualVersion = & $shim --version
