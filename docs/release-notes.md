@@ -1,4 +1,11 @@
-## Features
+## Changes in v1.0.17
+
+- Replaced the legacy Docker Distribution registry API dependency with Distribution v3.1.2. This removes the module-level CVE-2026-85747 finding from the Windows executables. Registry error handling and retry behavior have executable regression coverage.
+- Microsoft Store package notices identify the exact reviewed image and common library sources. The packaging checks verify the source records and vendored files.
+- Added a Chocolatey packaging workflow that verifies stable release assets and tests installation, the `skopeo` command, and uninstallation. Community publication is a separate submission.
+- Made Renovate configuration compatible with both validated CLI versions while keeping the Dependency Dashboard enabled.
+
+## Existing features
 
 - **Reviewed dependency updates:** Renovate Community Cloud tracks both Go modules, the Go toolchain, pinned GitHub Actions and the vulnerability scanner. Compatible updates are grouped, major updates require dashboard approval and security updates bypass the weekly schedule. Pull requests remain subject to review, Windows compatibility checks and vulnerability gates. Source/binary scan reports include advisory details to distinguish affected code from unused module packages.
 
@@ -52,7 +59,7 @@ Downloading a foreign layer does not guarantee a self-contained offline mirror: 
 
 - **Windows directory sync:** fixed destination image names for `sync --src=dir --dest=docker`. Native filesystem paths are now converted to registry-relative names without embedding a Windows drive or backslashes. Absolute/relative inputs, trailing separators, and scoped nested directories have executable regression coverage.
 
-- Sync uses maintained `go.yaml.in/yaml/v3` v3.0.5, and common is v0.69.2; newer image/storage security dependencies are retained.
+- Sync uses maintained `go.yaml.in/yaml/v3` v3.0.6. The reviewed common and image baselines are v0.70.0 and v5.42.1.
 - Invalid command arguments display actionable help; public-key write errors identify the correct file. Help includes duration units and OS/architecture override examples.
 - Automated releases now include this reviewed feature and verification summary alongside their source and CI links. Independent patch versions continue to increase without replacing published binaries or moving tags.
 
